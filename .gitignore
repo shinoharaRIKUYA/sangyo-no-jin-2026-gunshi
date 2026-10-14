@@ -1,0 +1,9 @@
+# サーバー側で生成される実行時ファイル（配置・コミットしない）
+sj2026-gunshi/data/*
+!sj2026-gunshi/data/.htaccess
+!sj2026-gunshi/data/index.html
+# 認証情報
+.htpasswd
+# OS
+Thumbs.db
+.DS_Store

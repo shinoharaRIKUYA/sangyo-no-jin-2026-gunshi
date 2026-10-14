@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>AI軍師の仕官相談所</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Web フォント（D-27）: 非ブロック読込。media=print の間は描画を待たず、読めたら all に切替。失敗時は print.css の font-family フォールバック -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Noto+Serif+JP:wght@400;700;900&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/print.css" media="all">
+</head>
+<body>
+<div id="app"><div id="stage"></div></div>
+<div id="sheet"></div>
+<!-- 読込順は固定: params → data → logic（PRJ-105 無変更コピー）→ ゲーム -->
+<script src="shindan/shindan_params.js"></script>
+<script src="shindan/shindan_data.js"></script>
+<script src="shindan/shindan_logic.js"></script>
+<script src="js/texts.js"></script>
+<script src="js/pure.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/net.js"></script>
+<script src="js/g1.js"></script>
+<script src="js/g2.js"></script>
+<script src="js/g3.js"></script>
+<script src="js/g4.js"></script>
+<script src="js/result.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

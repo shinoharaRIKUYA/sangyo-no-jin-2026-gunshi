@@ -1,0 +1,96 @@
+/* 推挙状（設計変更票 #2・A-5 差し替え）。A4 縦・カラー印刷（モノクロでも塗り反転・枠の太さ・文字で読める）
+   色は :root のトークン（sangyo-no-jin.jp の 10 色のうち使う分。AC-18'）だけ。短縮形・関数表記・色名は使わない
+   画面でも読む（index.html で media=all）: 計測 fit() と印刷の寸法を一致させるため。#sheet の画面外配置と .measure は game.css */
+:root {
+  --sj-bg-mitate: #F0E9DA;       /* 見立て箱の地（生成り） */
+  --sj-paper: #FFFFFF;      /* 紙の白 */
+  --sj-ink: #222222;        /* 本文 */
+  --sj-label: #41910F;      /* ラベル塗り・プログラム名の二重下線 */
+  --sj-head: #054527;       /* 見出し・罫線・体験タグ・カード枠 */
+  --sj-note: #8F7E58;      /* 注記の区切り・個人情報注記 */
+  --sj-honmei: #B7282E;        /* 本命の枠と帯 */
+  --sj-msg: #760005;   /* 体験 0 件の文言 */
+  --sj-mincho: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+  --sj-gothic: "BIZ UDPGothic", "BIZ UDGothic", "Yu Gothic UI", "Meiryo", sans-serif;
+}
+@page { size: A4 portrait; margin: 12mm; }
+
+/* ---- 紙（幅 186mm = A4 − 12mm×2） ---- */
+#sheet {
+  box-sizing: border-box; font-family: var(--sj-gothic); color: var(--sj-ink); background: var(--sj-paper);
+  font-size: 9pt; line-height: 1.45; letter-spacing: .02em;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+/* ---- 表題行: 推挙状（左）＋肩書き 2 行（右） ---- */
+.sh-head { display: flex; align-items: flex-end; justify-content: space-between; }
+.sh-title { font-family: var(--sj-mincho); font-weight: 900; font-size: 30pt; letter-spacing: .1em; color: var(--sj-head); line-height: 1.1; }
+.sh-subs { text-align: right; color: var(--sj-head); font-size: 9pt; line-height: 1.4; }
+.sh-sub.sub1 { font-weight: 700; }
+.sh-sub.sub2 { font-weight: 400; }
+
+/* 二重線（1px 線 2 本・間隔 6px・全幅） */
+.sh-rule { box-sizing: content-box; height: 5px; border-top: 1px solid var(--sj-head); border-bottom: 1px solid var(--sj-head); margin: 2mm 0; }
+
+/* メタ行 */
+.sh-meta { font-size: 8.5pt; text-align: right; color: var(--sj-ink); margin-bottom: 2mm; }
+
+/* ---- 見立て箱（左 47%）＋軍師の一言（右 50%） ---- */
+.sh-mitate-row { display: flex; align-items: stretch; justify-content: space-between; }
+.sh-mitate { width: 47%; box-sizing: border-box; border: 2px solid var(--sj-head); border-radius: 16px; background: var(--sj-bg-mitate); padding: 3mm; }
+.sh-mitate-h { font-size: 9pt; font-weight: 700; color: var(--sj-head); margin-bottom: 1mm; }
+.sh-axis { display: flex; align-items: center; gap: 2mm; }
+.sh-axis + .sh-axis { margin-top: 1mm; }
+.sh-mark { flex: 0 0 auto; width: 5mm; height: 5mm; box-sizing: border-box; border-radius: 50%; border: 1px solid var(--sj-head);
+  font-size: 7.5pt; line-height: 4.6mm; text-align: center; font-weight: 700; letter-spacing: 0; }
+.sh-axis.main .sh-mark { background: var(--sj-head); color: var(--sj-paper); }
+.sh-axis.sub .sh-mark { background: var(--sj-paper); color: var(--sj-head); }
+.sh-word { font-family: var(--sj-mincho); line-height: 1.3; }
+.sh-axis.main .sh-word { font-weight: 900; font-size: 20pt; color: var(--sj-head); }
+.sh-axis.sub .sh-word { font-weight: 700; font-size: 13pt; color: var(--sj-ink); }
+.sh-hitokoto { width: 50%; box-sizing: border-box; }
+.sh-hitokoto-h { font-family: var(--sj-mincho); font-weight: 700; font-size: 10pt; color: var(--sj-head); margin-bottom: 1mm; }
+.sh-hitokoto-body { font-size: 10.5pt; line-height: 1.6; color: var(--sj-ink); }
+
+/* ---- カード 2 列グリッド ---- */
+.sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 4mm; grid-auto-rows: 1fr; margin-top: 3mm; }
+.sh-card { position: relative; box-sizing: border-box; background: var(--sj-paper); border: 1px solid var(--sj-head); border-radius: 10px;
+  padding: 2.5mm 3mm; page-break-inside: avoid; break-inside: avoid; }
+/* 奇数枚目（5 枚目を含む）は左列。前提: .sh-grid の DOM の先頭はカード（.sh-card）であること。
+   先頭に別要素を足すと奇数／偶数が反転して逆に効く（.sh-fixedblock は最後に置く）。AC-27 の computed 値 "1" の根拠 */
+.sh-grid > .sh-card:nth-child(odd) { grid-column-start: 1; }
+.sh-card.honmei { border: 3px solid var(--sj-honmei); }
+.sh-c1 { display: flex; align-items: center; gap: 1.5mm; font-size: 9pt; color: var(--sj-ink); }
+/* 本命帯: .sh-c1 の flex 末尾（margin-left:auto）に置く。出展者名が長くても帯の幅ぶんだけ折り返すので重ならない（absolute 配置と padding-right の定数は廃止） */
+.sh-honmei { flex: 0 0 auto; margin-left: auto; align-self: flex-start; background: var(--sj-honmei); color: var(--sj-paper);
+  font-size: 8pt; font-weight: 700; line-height: 1.5; padding: .5mm 2mm; border-radius: 4px; letter-spacing: 0; white-space: nowrap; }
+.sh-kind { flex: 0 0 auto; box-sizing: border-box; font-size: 8pt; font-weight: 700; line-height: 1.6; padding: 0 1.5mm; border: 1px solid var(--sj-head); }
+.sh-kind.taiken { background: var(--sj-head); color: var(--sj-paper); }
+.sh-kind.kengaku { background: var(--sj-paper); color: var(--sj-head); }
+.sh-ename { min-width: 0; }
+.sh-c2 { font-family: var(--sj-mincho); font-weight: 700; font-size: 12pt; color: var(--sj-head); line-height: 1.3;
+  border-bottom: 3px double var(--sj-label); padding-bottom: .5mm; margin: 1mm 0 1.5mm; }
+.sh-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 2mm; }
+.sh-row { display: flex; align-items: flex-start; gap: 1.5mm; min-width: 0; }
+.sh-label { flex: 0 0 auto; width: 4em; box-sizing: border-box; text-align: center; font-size: 8pt; font-weight: 700; line-height: 1.6;
+  color: var(--sj-paper); background: var(--sj-label); border-radius: 4px; letter-spacing: 0; }
+.sh-val { min-width: 0; font-size: 9pt; color: var(--sj-ink); line-height: 1.45; }
+.sh-c5 { font-size: 7.5pt; line-height: 1.4; color: var(--sj-ink); border-top: 1px dotted var(--sj-note); margin-top: 1.5mm; padding-top: 1mm; }
+
+/* 6 セル目（カードの次のセル）: 体験 0 件の文言＋定型文＋個人情報注記。カードが偶数枚なら 2 列分 */
+.sh-fixedblock { box-sizing: border-box; font-size: 8pt; line-height: 1.45; color: var(--sj-ink); padding: 1mm 0; }
+.sh-fixedblock.wide { grid-column: 1 / -1; }
+.sh-msg { font-size: 9pt; font-weight: 700; color: var(--sj-msg); margin-bottom: 1mm; }
+.sh-privacy { font-size: 7pt; color: var(--sj-note); margin-top: 1mm; text-align: right; }
+
+/* fit() の 2 段目 */
+#sheet.compact .sh-c5 { font-size: 7pt; line-height: 1.3; }
+#sheet.compact .sh-card { padding: 2mm; }
+#sheet.compact .sh-hitokoto-body { font-size: 10pt; }
+
+/* ---- 印刷時: ゲーム画面を隠し、#sheet だけを紙に ---- */
+@media print {
+  html, body { background: var(--sj-paper); overflow: visible; height: auto; }
+  #app, .debug { display: none !important; }
+  #sheet { display: block !important; position: static; visibility: visible; width: auto; }
+}

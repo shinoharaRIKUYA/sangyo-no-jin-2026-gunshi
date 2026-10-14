@@ -1,0 +1,5 @@
+# 管理画面の Basic 認証（A-7-1）。.htpasswd は公開領域外にユーザー本人が P6 で作成する（D-17）
+AuthType Basic
+AuthName "sj2026 admin"
+AuthUserFile /home/coco529/sj2026-gunshi-auth/.htpasswd
+Require valid-user

@@ -1,0 +1,8 @@
+# data/ は外部から一切読ませない（D-9）。PHP が作るファイルは 0600、ディレクトリは P6 で chmod 700（二重化）
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

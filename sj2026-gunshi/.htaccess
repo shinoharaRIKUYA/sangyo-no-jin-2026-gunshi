@@ -1,0 +1,17 @@
+# 産業の陣2026 AI軍師の仕官相談所（公開フォルダ sj2026-gunshi）
+# 検索避け
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow"
+</IfModule>
+# 一覧禁止
+Options -Indexes
+# . と _ で始まるファイル（.htaccess・_lib.php・_config.php 等）は拒否
+<FilesMatch "^(\.|_)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
