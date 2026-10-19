@@ -49,45 +49,83 @@
   }
 
   // ---- 一の陣（A-3-1） ---------------------------------------------------
-  // 2026-10-19 調整（PRJ-111）: 年齢段階ごとに線の本数（3〜8）・曲がり具合・許容幅を変える。制限 45 秒
+  // 2026-10-19 調整（PRJ-113）: 年齢段階ごとに線の本数（3〜8）と複雑さ（カーブの回数・直角の数）・許容幅を変える。制限 45 秒
+  // type "path" は M／L（直線）／Q（2 次曲線）／C（3 次曲線）をつないだ 1 本の線。直角＝直線と直線が 90° でつながる角
   var G1_DEFS = {
     L1: { type: "line", p: [[290, 420], [990, 420]] },                               // 横
     L2: { type: "line", p: [[290, 560], [990, 280]] },                               // 右上がり
     L3: { type: "line", p: [[640, 250], [640, 600]] },                               // 縦
-    L4: { type: "line", p: [[290, 280], [990, 560]] },                               // 右下がり
     Q1: { type: "quad", p: [[290, 500], [640, 300], [990, 500]] },                   // ゆるい山
     Q2: { type: "quad", p: [[290, 500], [640, 240], [990, 500]] },                   // 山
     Q3: { type: "quad", p: [[290, 300], [640, 600], [990, 300]] },                   // 谷
     C1: { type: "cubic", p: [[290, 420], [520, 240], [760, 600], [990, 420]] },      // S 字
     C2: { type: "cubic", p: [[290, 420], [480, 180], [800, 660], [990, 420]] },      // 強い S 字
     C3: { type: "cubic", p: [[290, 300], [990, 250], [290, 600], [990, 560]] },      // Z 字（急カーブ 2 つ）
-    C4: { type: "cubic", p: [[340, 560], [340, 240], [940, 240], [940, 560]] }       // 門形（両端が急）
+    C4: { type: "cubic", p: [[340, 560], [340, 240], [940, 240], [940, 560]] },      // 門形（両端が急）
+    R1: { type: "path", d: [["M", 320, 280], ["L", 320, 560], ["L", 960, 560]] },                                   // 直角 1（L 字）
+    R2: { type: "path", d: [["M", 290, 300], ["L", 640, 300], ["L", 640, 560], ["L", 990, 560]] },                  // 直角 2（段差）
+    R4: { type: "path", d: [["M", 300, 580], ["L", 300, 460], ["L", 560, 460], ["L", 560, 340], ["L", 820, 340], ["L", 820, 240]] },   // 直角 4（階段）
+    W2: { type: "path", d: [["M", 290, 420], ["Q", 465, 240, 640, 420], ["Q", 815, 600, 990, 420]] },               // 波 カーブ 2
+    W3: { type: "path", d: [["M", 290, 420], ["Q", 407, 260, 523, 420], ["Q", 640, 580, 757, 420], ["Q", 873, 260, 990, 420]] },        // 波 カーブ 3
+    W4: { type: "path", d: [["M", 270, 420], ["Q", 370, 270, 470, 420], ["Q", 570, 570, 670, 420], ["Q", 770, 270, 870, 420], ["Q", 960, 570, 1050, 420]] }, // 波 カーブ 4
+    M2: { type: "path", d: [["M", 260, 560], ["Q", 380, 380, 500, 560], ["L", 500, 300], ["L", 760, 300], ["L", 760, 560], ["Q", 880, 380, 1000, 560]] },   // カーブ 2＋直角 2
+    F8: { type: "path", d: [["M", 240, 600], ["L", 240, 440], ["L", 400, 440], ["Q", 480, 320, 560, 440], ["Q", 640, 560, 720, 440],
+                            ["L", 720, 280], ["L", 880, 280], ["L", 880, 440], ["Q", 930, 540, 980, 440], ["Q", 1030, 340, 1040, 260]] }    // カーブ 4＋直角 3（大人の最後）
   };
   // 段階ごとの線（やさしい順）と許容幅 tol（px。小さいほど難しい）
   var G1_STAGES = [
-    { tol: 24, lines: ["L1", "L3", "L2"] },                                   // 0 未就学児: 直線 3
-    { tol: 22, lines: ["L1", "L2", "L3", "L4"] },                             // 1 低学年: 直線 4
-    { tol: 18, lines: ["L1", "L2", "Q1", "L3", "Q3"] },                       // 2 高学年: 直線 3・ゆるい曲線 2
-    { tol: 16, lines: ["L2", "Q1", "Q2", "L4", "Q3", "C1"] },                 // 3 中学生: 曲線 4（S 字 1）
-    { tol: 14, lines: ["Q2", "L2", "C1", "Q3", "C4", "L4", "C2"] },           // 4 高校生: 曲線 5（強い S・門形）
-    { tol: 12, lines: ["Q2", "C1", "L2", "C4", "C2", "Q3", "C3", "L4"] }      // 5 大人以上: 8 本（Z 字を含む）
+    { tol: 24, lines: ["L1", "L3", "L2"] },                                          // 0 未就学児: 直線 3
+    { tol: 22, lines: ["L1", "L2", "R1", "Q1"] },                                    // 1 低学年: 直線・直角 1・ゆるい山
+    { tol: 18, lines: ["L2", "Q2", "R1", "Q3", "R2"] },                              // 2 高学年: 山・谷・直角 1〜2
+    { tol: 16, lines: ["Q2", "R2", "C1", "W2", "R4", "C3"] },                        // 3 中学生: S 字・波 2・階段（直角 4）・Z 字
+    { tol: 14, lines: ["C1", "R4", "W2", "C4", "M2", "C2", "W3"] },                  // 4 高校生: 門形・カーブ 2＋直角 2・波 3
+    { tol: 12, lines: ["C2", "R4", "W3", "C3", "M2", "C4", "W4", "F8"] }             // 5 大人以上: 8 本。最後はカーブ 4＋直角 3
   ];
 
-  // 線の定義 → 折れ線（直線は 2 点、曲線は 200 点に標本化）
-  function g1Polyline(def) {
-    var p = def.p, pts = [], i, t, u;
-    if (def.type === "line") { return [p[0].slice(), p[1].slice()]; }
-    for (i = 0; i < 200; i++) {
-      t = i / 199; u = 1 - t;
-      if (def.type === "quad") {
-        pts.push([u * u * p[0][0] + 2 * u * t * p[1][0] + t * t * p[2][0],
-                  u * u * p[0][1] + 2 * u * t * p[1][1] + t * t * p[2][1]]);
+  function bez(p0, ps, n, out) {   // p0 から ps（制御点…終点）までを n 点に標本化（始点は含めない）
+    for (var i = 1; i <= n; i++) {
+      var t = i / n, u = 1 - t;
+      if (ps.length === 2) {
+        out.push([u * u * p0[0] + 2 * u * t * ps[0][0] + t * t * ps[1][0], u * u * p0[1] + 2 * u * t * ps[0][1] + t * t * ps[1][1]]);
       } else {
-        pts.push([u * u * u * p[0][0] + 3 * u * u * t * p[1][0] + 3 * u * t * t * p[2][0] + t * t * t * p[3][0],
-                  u * u * u * p[0][1] + 3 * u * u * t * p[1][1] + 3 * u * t * t * p[2][1] + t * t * t * p[3][1]]);
+        out.push([u * u * u * p0[0] + 3 * u * u * t * ps[0][0] + 3 * u * t * t * ps[1][0] + t * t * t * ps[2][0],
+                  u * u * u * p0[1] + 3 * u * u * t * ps[0][1] + 3 * u * t * t * ps[1][1] + t * t * t * ps[2][1]]);
       }
     }
+  }
+  // 線の定義 → 折れ線（直線は 2 点、単独の曲線は 200 点、path の曲線は 1 本 60 点に標本化）
+  function g1Polyline(def) {
+    var p = def.p, pts = [];
+    if (def.type === "line") { return [p[0].slice(), p[1].slice()]; }
+    if (def.type === "path") {
+      var cur = null;
+      def.d.forEach(function (c) {
+        if (c[0] === "M") { cur = [c[1], c[2]]; pts.push(cur.slice()); }
+        else if (c[0] === "L") { cur = [c[1], c[2]]; pts.push(cur.slice()); }
+        else if (c[0] === "Q") { bez(cur, [[c[1], c[2]], [c[3], c[4]]], 60, pts); cur = [c[3], c[4]]; }
+        else if (c[0] === "C") { bez(cur, [[c[1], c[2]], [c[3], c[4]], [c[5], c[6]]], 60, pts); cur = [c[5], c[6]]; }
+      });
+      return pts;
+    }
+    pts.push(p[0].slice());
+    bez(p[0], p.slice(1), 199, pts);
     return pts;
+  }
+  // 線の複雑さ（テスト・説明用）: curves＝曲線の数、rights＝直線どうしが 90° でつながる角の数
+  function g1Shape(def) {
+    if (def.type === "line") { return { curves: 0, rights: 0 }; }
+    if (def.type !== "path") { return { curves: 1, rights: 0 }; }
+    var curves = 0, rights = 0, prev = null, cur = null;
+    def.d.forEach(function (c) {
+      if (c[0] === "M") { cur = [c[1], c[2]]; prev = null; return; }
+      if (c[0] === "L") {
+        var v = [c[1] - cur[0], c[2] - cur[1]];
+        if (prev && prev.v && prev.v[0] * v[0] + prev.v[1] * v[1] === 0) { rights++; }
+        prev = { v: v }; cur = [c[1], c[2]]; return;
+      }
+      curves++; prev = null; cur = c[0] === "Q" ? [c[3], c[4]] : [c[5], c[6]];
+    });
+    return { curves: curves, rights: rights };
   }
   function g1Lines(ageClass) {
     var st = G1_STAGES[ageClass];
@@ -399,7 +437,7 @@
     G2_BOARD: G2_BOARD, G2_TRAY: G2_TRAY,
     G3_STAGES: G3_STAGES, G3_MARKS: G3_MARKS, G3_BOX: G3_BOX, g3Marks: g3Marks, g3Layout: g3Layout, g3Labels: g3Labels, g3Pick: g3Pick, g3Drop: g3Drop, g3Tally: g3Tally,
     g4Layout: g4Layout, g4Bfs: g4Bfs, g4Run: g4Run, isWall: isWall, g4Metrics: g4Metrics, G4_STAGES: G4_STAGES, G4_PUZZLES: G4_PUZZLES,
-    G1_STAGES: G1_STAGES, G1_DEFS: G1_DEFS,
+    G1_STAGES: G1_STAGES, G1_DEFS: G1_DEFS, g1Shape: g1Shape,
     applyOverrides: applyOverrides, effectiveParams: effectiveParams,
     reserveLabel: reserveLabel, ageLabel: ageLabel, durationLabel: durationLabel, costLabel: costLabel, daysLabel: daysLabel
   };

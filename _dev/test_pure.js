@@ -35,10 +35,16 @@ var AGES = [0, 1, 2, 3, 4, 5];
   ok(L.scoreGame(1, 3, m0, PARAMS).s === 0, "g1 標本 0 は logic で 0 点（v2: ageClass 3）");
   // PRJ-111: 段階ごとの本数 3〜8・曲線の数が増える
   eq(AGES.map(function (a) { return P.g1Lines(a).length; }), [3, 4, 5, 6, 7, 8], "g1 段階ごとの本数 3/4/5/6/7/8");
-  eq(AGES.map(function (a) { return P.g1Lines(a).filter(function (l) { return l.def.type !== "line"; }).length; }), [0, 0, 2, 4, 5, 6], "g1 曲線の数 0/0/2/4/5/6");
+  // PRJ-113: 段階が上がるほど「カーブの回数＋直角の数」の合計が増え、大人の最後はカーブ 4＋直角 3
+  var cx = AGES.map(function (a) { return P.g1Lines(a).reduce(function (t, l) { var sh = P.g1Shape(l.def); return t + sh.curves + sh.rights; }, 0); });
+  ok(cx.every(function (v, i) { return i === 0 || v > cx[i - 1]; }), "g1 段階ごとに複雑さ（カーブ＋直角の合計）が増える", cx);
+  var last = P.g1Lines(5)[7]; eq([last.id, P.g1Shape(last.def).curves, P.g1Shape(last.def).rights], ["F8", 4, 3], "g1 大人以上の 8 本目はカーブ 4＋直角 3");
+  eq(P.g1Shape(P.G1_DEFS.R4), { curves: 0, rights: 4 }, "g1 階段 R4 は直角 4");
+  eq(P.g1Shape(P.G1_DEFS.W4), { curves: 4, rights: 0 }, "g1 波 W4 はカーブ 4");
   eq(P.g1Lines(0).map(function (l) { return l.def.type; }), ["line", "line", "line"], "g1 未就学児は直線 3");
   ok(P.g1Lines(5).some(function (l) { return l.id === "C3"; }), "g1 大人以上に Z 字（C3）");
-  eq(P.g1Lines(3)[1].pts.length, 200, "g1 曲線は 200 点");
+  eq(P.g1Lines(3)[0].pts.length, 200, "g1 単独の曲線は 200 点");
+  eq(P.g1Polyline(P.G1_DEFS.W2).length, 121, "g1 path の曲線は 1 本 60 点（W2 は 1+60+60）");
   ok(AGES.every(function (a) { return P.g1Lines(a).every(function (l) { return l.pts.every(function (q) { return q[0] >= 200 && q[0] <= 1080 && q[1] >= 205 && q[1] <= 635; }); }); }), "g1 全段階の線が板（190〜1090 × 200〜640）の内側");
   ok(throws(function () { P.g1Lines("adult"); }) && throws(function () { P.g1Lines(6); }), "g1Lines 旧署名・範囲外は Error");
 })();
