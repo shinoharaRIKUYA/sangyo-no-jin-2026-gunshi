@@ -20,13 +20,14 @@
   }
 
   // ---- 三の陣 v2 の段階表（PRJ-110 付録 B-2-1。添字 = ageClass 0〜5。前提値・10/20 で見直す） --------
+  // 2026-10-19 調整（PRJ-110 設計変更票 #7）: 全体の流量（lanes/intervalSec＝個/秒）を 0.42→1.34 の等間隔に。大人以上 1.34 個/秒＝40 秒で約 54 個が最大
   var G3_STAGES = [
     { lanes: 1, marks: 2, speed: 96,  intervalSec: 2.4, grabMargin: 24, limitSec: 40 },   // 0 未就学児
-    { lanes: 1, marks: 2, speed: 110, intervalSec: 2.0, grabMargin: 24, limitSec: 40 },   // 1 低学年
-    { lanes: 2, marks: 3, speed: 130, intervalSec: 1.6, grabMargin: 12, limitSec: 40 },   // 2 高学年
-    { lanes: 2, marks: 4, speed: 150, intervalSec: 1.3, grabMargin: 12, limitSec: 40 },   // 3 中学生
-    { lanes: 3, marks: 4, speed: 170, intervalSec: 1.1, grabMargin: 12, limitSec: 40 },   // 4 高校生
-    { lanes: 3, marks: 5, speed: 200, intervalSec: 0.9, grabMargin: 12, limitSec: 40 }    // 5 大人以上
+    { lanes: 1, marks: 2, speed: 110, intervalSec: 1.7, grabMargin: 24, limitSec: 40 },   // 1 低学年
+    { lanes: 2, marks: 3, speed: 130, intervalSec: 2.5, grabMargin: 12, limitSec: 40 },   // 2 高学年
+    { lanes: 2, marks: 4, speed: 150, intervalSec: 2.1, grabMargin: 12, limitSec: 40 },   // 3 中学生
+    { lanes: 3, marks: 4, speed: 170, intervalSec: 2.6, grabMargin: 12, limitSec: 40 },   // 4 高校生
+    { lanes: 3, marks: 5, speed: 200, intervalSec: 2.24, grabMargin: 12, limitSec: 40 }    // 5 大人以上
   ];
 
   // ---- 各陣の設定（A-3。AC-11 で window.__sj.config に出す） -------------

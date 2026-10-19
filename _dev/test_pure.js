@@ -193,7 +193,7 @@ var AGES = [0, 1, 2, 3, 4, 5];
   eq(cfg.map(function (c) { return c.g3.lanes; }), [1, 1, 2, 2, 3, 3], "gameConfig g3.lanes 1/1/2/2/3/3");
   eq(cfg.map(function (c) { return c.g3.marks; }), [2, 2, 3, 4, 4, 5], "gameConfig g3.marks 2/2/3/4/4/5");
   eq(cfg.map(function (c) { return c.g3.speed; }), [96, 110, 130, 150, 170, 200], "gameConfig g3.speed");
-  eq(cfg.map(function (c) { return c.g3.intervalSec; }), [2.4, 2.0, 1.6, 1.3, 1.1, 0.9], "gameConfig g3.intervalSec");
+  eq(cfg.map(function (c) { return c.g3.intervalSec; }), [2.4, 1.7, 2.5, 2.1, 2.6, 2.24], "gameConfig g3.intervalSec");
   ok(cfg.every(function (c) { return c.g3.limitSec === 40 && !("downKey" in c.g3); }), "gameConfig g3.limitSec 40・downKey なし");
   eq(cfg.map(function (c) { return c.mode; }), PARAMS.modeByAge, "gameConfig mode は modeByAge と一致");
   eq(cfg.map(function (c) { return c.ageClass; }), AGES, "gameConfig ageClass を返す");
@@ -228,7 +228,7 @@ var AGES = [0, 1, 2, 3, 4, 5];
   });
   var m1 = { onLineRate: 50, maxDev: 40 };
   ok(L.scoreGame(1, 0, m1, PARAMS).p1 > L.scoreGame(1, 2, m1, PARAMS).p1, "AC-04 同じ入力で段階 0 の p1 > 段階 2 の p1");
-  ok(near(L.scoreGame(3, 4, { correct: 25, wrong: 0, missed: 0 }, PARAMS).p2, (25 - 13) / (40 - 13) * 100), "B-1 検算 scoreGame(3,4,25).p2 = 44.4");
+  ok(near(L.scoreGame(3, 4, { correct: 25, wrong: 0, missed: 0 }, PARAMS).p2, (25 - 11) / (35 - 11) * 100), "B-1 検算 scoreGame(3,4,25).p2 = 58.3（2026-10-19 調整後の閾値 [11, 35]）");
   [6, -1, "3", "adult", 1.5, null].forEach(function (v) {
     ok(throws(function () { L.scoreGame(3, v, { correct: 1, wrong: 0, missed: 0 }, PARAMS); }), "AC-04 scoreGame ageClass " + JSON.stringify(v) + " は Error");
   });
