@@ -72,7 +72,7 @@
   //  一の陣: { onLineRate(%), maxDev(px) } または { inSamples, totalSamples, maxDev }
   //  二の陣: { retries, seconds, completed }（未完成は上限 60 秒）
   //  三の陣: { correct, wrong, missed } または { accuracy(%), count }
-  //  四の陣: { success, runs, shortest, used }（未成功は両指標 0）
+  //  四の陣: { success, runs, shortest, used }（未成功は両指標 0）。複数問は各項目を問題ごとの配列にし、全問の平均（PRJ-111）
   // 途中でやめた・時間切れは、その時点のログで計算する（欠損を作らない）
   // v2: 閾値が無い段階（ageClass が整数でない・範囲外）は黙って別の閾値に落とさず Error を投げる（R2 §7）
   function scoreGame(game, ageClass, m, params) {
@@ -105,10 +105,22 @@
       p1 = clampScore(acc, th.g3_accuracy[0], th.g3_accuracy[1]);
       p2 = clampScore(cnt, th.g3_count[0], th.g3_count[1]);
     } else if (game === 4) {
-      if (m.success && num(m.used, 0) > 0) {
-        p1 = clampScore(num(m.runs, th.g4_runs[0]), th.g4_runs[0], th.g4_runs[1]);
-        p2 = clampScore(num(m.shortest, 0) / m.used, th.g4_ratio[0], th.g4_ratio[1]);
-      } // 未成功は 0 点
+      // 1 問ずつ従来の式で採点（未成功は 0 点）。複数問（各項目が配列。PRJ-111）は全問の平均
+      var one = function (ok, runs, shortest, used) {
+        if (!ok || num(used, 0) <= 0) { return [0, 0]; }
+        return [clampScore(num(runs, th.g4_runs[0]), th.g4_runs[0], th.g4_runs[1]),
+                clampScore(num(shortest, 0) / used, th.g4_ratio[0], th.g4_ratio[1])];
+      };
+      if (Array.isArray(m.success)) {
+        var nq = m.success.length;
+        for (var q = 0; q < nq; q++) {
+          var r4 = one(m.success[q], (m.runs || [])[q], (m.shortest || [])[q], (m.used || [])[q]);
+          p1 += r4[0]; p2 += r4[1];
+        }
+        if (nq > 0) { p1 /= nq; p2 /= nq; }
+      } else {
+        var r1 = one(m.success, m.runs, m.shortest, m.used); p1 = r1[0]; p2 = r1[1];
+      }
     } else {
       throw new Error("scoreGame: game は 1〜4");
     }

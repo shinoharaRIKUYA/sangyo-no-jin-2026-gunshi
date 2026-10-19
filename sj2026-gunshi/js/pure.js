@@ -41,26 +41,37 @@
     return {
       mode: adult ? "adult" : "child",
       ageClass: ageClass,
-      g1: { tol: adult ? 12 : 24, lines: adult ? ["直線", "曲線", "曲線"] : ["直線", "直線", "直線"], limitSec: 60, guideSec: 45, sampleMs: 50, minSamples: 20 },
+      g1: { tol: G1_STAGES[ageClass].tol, lines: G1_STAGES[ageClass].lines.slice(), limitSec: 45, sampleMs: 50, minSamples: 20 },
       g2: { parts: adult ? 5 : 3, snap: adult ? 20 : 40, limitSec: 60, grabMargin: 12 },
       g3: g3,
-      g4: { size: adult ? 5 : 4, obstacles: adult ? 3 : 1, maxCmds: 8, stepMs: 300, limitSec: 60 }
+      g4: { puzzles: G4_STAGES[ageClass].slice(), maxCmds: 8, stepMs: 300, limitSec: 45 }
     };
   }
 
   // ---- 一の陣（A-3-1） ---------------------------------------------------
-  var G1_LINES = {
-    child: [
-      { type: "line", p: [[290, 420], [990, 420]] },
-      { type: "line", p: [[290, 560], [990, 280]] },
-      { type: "line", p: [[640, 250], [640, 600]] }
-    ],
-    adult: [
-      { type: "line", p: [[290, 420], [990, 420]] },
-      { type: "quad", p: [[290, 500], [640, 240], [990, 500]] },
-      { type: "cubic", p: [[290, 420], [520, 240], [760, 600], [990, 420]] }
-    ]
+  // 2026-10-19 調整（PRJ-111）: 年齢段階ごとに線の本数（3〜8）・曲がり具合・許容幅を変える。制限 45 秒
+  var G1_DEFS = {
+    L1: { type: "line", p: [[290, 420], [990, 420]] },                               // 横
+    L2: { type: "line", p: [[290, 560], [990, 280]] },                               // 右上がり
+    L3: { type: "line", p: [[640, 250], [640, 600]] },                               // 縦
+    L4: { type: "line", p: [[290, 280], [990, 560]] },                               // 右下がり
+    Q1: { type: "quad", p: [[290, 500], [640, 300], [990, 500]] },                   // ゆるい山
+    Q2: { type: "quad", p: [[290, 500], [640, 240], [990, 500]] },                   // 山
+    Q3: { type: "quad", p: [[290, 300], [640, 600], [990, 300]] },                   // 谷
+    C1: { type: "cubic", p: [[290, 420], [520, 240], [760, 600], [990, 420]] },      // S 字
+    C2: { type: "cubic", p: [[290, 420], [480, 180], [800, 660], [990, 420]] },      // 強い S 字
+    C3: { type: "cubic", p: [[290, 300], [990, 250], [290, 600], [990, 560]] },      // Z 字（急カーブ 2 つ）
+    C4: { type: "cubic", p: [[340, 560], [340, 240], [940, 240], [940, 560]] }       // 門形（両端が急）
   };
+  // 段階ごとの線（やさしい順）と許容幅 tol（px。小さいほど難しい）
+  var G1_STAGES = [
+    { tol: 24, lines: ["L1", "L3", "L2"] },                                   // 0 未就学児: 直線 3
+    { tol: 22, lines: ["L1", "L2", "L3", "L4"] },                             // 1 低学年: 直線 4
+    { tol: 18, lines: ["L1", "L2", "Q1", "L3", "Q3"] },                       // 2 高学年: 直線 3・ゆるい曲線 2
+    { tol: 16, lines: ["L2", "Q1", "Q2", "L4", "Q3", "C1"] },                 // 3 中学生: 曲線 4（S 字 1）
+    { tol: 14, lines: ["Q2", "L2", "C1", "Q3", "C4", "L4", "C2"] },           // 4 高校生: 曲線 5（強い S・門形）
+    { tol: 12, lines: ["Q2", "C1", "L2", "C4", "C2", "Q3", "C3", "L4"] }      // 5 大人以上: 8 本（Z 字を含む）
+  ];
 
   // 線の定義 → 折れ線（直線は 2 点、曲線は 200 点に標本化）
   function g1Polyline(def) {
@@ -78,7 +89,11 @@
     }
     return pts;
   }
-  function g1Lines(mode) { return G1_LINES[mode === "adult" ? "adult" : "child"].map(function (d) { return { def: d, pts: g1Polyline(d) }; }); }
+  function g1Lines(ageClass) {
+    var st = G1_STAGES[ageClass];
+    if (!Number.isInteger(ageClass) || !st) { throw new Error("g1Lines: ageClass " + JSON.stringify(ageClass) + " の段階表がない"); }
+    return st.lines.map(function (id) { var d = G1_DEFS[id]; return { id: id, def: d, pts: g1Polyline(d) }; });
+  }
 
   function polyLength(pts) { var L = 0; for (var i = 1; i < pts.length; i++) { L += dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]); } return L; }
 
@@ -251,16 +266,41 @@
   }
 
   // ---- 四の陣（A-3-4） ---------------------------------------------------
-  var G4_LAYOUT = {
-    adult: { size: 5, start: [0, 4], goal: [3, 2], walls: [[1, 3], [2, 3], [3, 4]], shortest: 5 },
-    child: { size: 4, start: [0, 3], goal: [2, 1], walls: [[1, 2]], shortest: 4 }
+  // 2026-10-19 調整（PRJ-111）: 年齢段階ごとに問題数（1〜4）と難しさを変える。3 問以上の段階は最後が矢印 8 個の問題。制限 45 秒
+  // 盤面は BFS で最短手数を確認済み（test_pure で毎回検算）。shortest は表示・採点に使う最短手数
+  var G4_PUZZLES = {
+    c4: { size: 4, start: [0, 3], goal: [2, 1], walls: [[1, 2]], shortest: 4 },                                       // 旧こども
+    c6: { size: 4, start: [0, 3], goal: [3, 0], walls: [[1, 1], [2, 2], [1, 3]], shortest: 6 },
+    a5: { size: 5, start: [0, 4], goal: [3, 2], walls: [[1, 3], [2, 3], [3, 4]], shortest: 5 },                       // 旧おとな
+    a6: { size: 5, start: [0, 4], goal: [3, 3], walls: [[4, 0], [1, 3], [4, 4], [2, 3], [1, 4]], shortest: 6 },
+    a7: { size: 5, start: [0, 4], goal: [2, 3], walls: [[2, 0], [1, 2], [1, 4], [1, 3]], shortest: 7 },
+    e8a: { size: 5, start: [0, 4], goal: [3, 3], walls: [[2, 2], [0, 2], [0, 3], [3, 4], [2, 3]], shortest: 8 },      // 矢印 8 個
+    e8b: { size: 5, start: [0, 4], goal: [3, 1], walls: [[3, 0], [1, 1], [3, 4], [2, 3], [2, 2]], shortest: 8 }       // 矢印 8 個
   };
+  var G4_STAGES = [
+    ["c4"],                      // 0 未就学児: 1 問
+    ["c4", "c6"],                // 1 低学年: 2 問
+    ["c6", "a5"],                // 2 高学年: 2 問
+    ["a5", "a6", "e8a"],         // 3 中学生: 3 問（最後は 8 手）
+    ["a6", "a7", "e8a"],         // 4 高校生: 3 問（最後は 8 手）
+    ["a5", "a6", "a7", "e8b"]    // 5 大人以上: 4 問（最後は 8 手）
+  ];
   var DIRS = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
-  // n が奇数なら左右反転
-  function g4Layout(mode, n) {
-    var b = G4_LAYOUT[mode === "adult" ? "adult" : "child"], mir = Math.abs(Math.floor(n)) % 2 === 1, S = b.size;
+  // 問題 id の盤面。n が奇数なら左右反転
+  function g4Layout(id, n) {
+    var b = G4_PUZZLES[id]; if (!b) { throw new Error("g4Layout: 問題 " + JSON.stringify(id) + " がない"); }
+    var mir = Math.abs(Math.floor(n)) % 2 === 1, S = b.size;
     var f = function (p) { return mir ? [S - 1 - p[0], p[1]] : [p[0], p[1]]; };
-    return { size: S, start: f(b.start), goal: f(b.goal), walls: b.walls.map(f), shortest: b.shortest, mirrored: mir };
+    return { id: id, size: S, start: f(b.start), goal: f(b.goal), walls: b.walls.map(f), shortest: b.shortest, mirrored: mir };
+  }
+  // 段階の全問（各問の結果を配列で持つ指標 {success[], runs[], shortest[], used[]} を作るための入れ物）
+  function g4Metrics(results, ids) {
+    var m = { success: [], runs: [], shortest: [], used: [] };
+    for (var i = 0; i < ids.length; i++) {
+      var r = results[i] || { success: false, runs: 0, used: 0 };
+      m.success.push(!!r.success); m.runs.push(r.runs || 0); m.shortest.push(G4_PUZZLES[ids[i]].shortest); m.used.push(r.success ? r.used : 0);
+    }
+    return m;
   }
   function isWall(lay, x, y) {
     if (x < 0 || y < 0 || x >= lay.size || y >= lay.size) { return true; }
@@ -358,7 +398,8 @@
     g2Parts: g2Parts, g2Order: g2Order, g2TrayLayout: g2TrayLayout, g2Judge: g2Judge, g2Metrics: g2Metrics, g2Hit: g2Hit, g2PickPart: g2PickPart,
     G2_BOARD: G2_BOARD, G2_TRAY: G2_TRAY,
     G3_STAGES: G3_STAGES, G3_MARKS: G3_MARKS, G3_BOX: G3_BOX, g3Marks: g3Marks, g3Layout: g3Layout, g3Labels: g3Labels, g3Pick: g3Pick, g3Drop: g3Drop, g3Tally: g3Tally,
-    g4Layout: g4Layout, g4Bfs: g4Bfs, g4Run: g4Run, isWall: isWall,
+    g4Layout: g4Layout, g4Bfs: g4Bfs, g4Run: g4Run, isWall: isWall, g4Metrics: g4Metrics, G4_STAGES: G4_STAGES, G4_PUZZLES: G4_PUZZLES,
+    G1_STAGES: G1_STAGES, G1_DEFS: G1_DEFS,
     applyOverrides: applyOverrides, effectiveParams: effectiveParams,
     reserveLabel: reserveLabel, ageLabel: ageLabel, durationLabel: durationLabel, costLabel: costLabel, daysLabel: daysLabel
   };

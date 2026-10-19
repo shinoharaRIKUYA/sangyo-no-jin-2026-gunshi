@@ -21,7 +21,7 @@ var AGES = [0, 1, 2, 3, 4, 5];
 
 // ---- g1 ----
 (function () {
-  var lines = P.g1Lines("child");
+  var lines = P.g1Lines(0);
   var pts = lines[0].pts;                                    // (290,420)→(990,420)
   eq(P.g1Project(pts, 500, 430).d, 10, "g1 距離（水平線から 10）");
   eq(Math.round(P.g1Project(pts, 500, 430).along), 210, "g1 弧長");
@@ -33,9 +33,14 @@ var AGES = [0, 1, 2, 3, 4, 5];
   var m0 = P.g1Metrics([], 12);
   ok(m0.totalSamples === 0 && !("maxDev" in m0), "g1 totalSamples 0 で maxDev なし", m0);
   ok(L.scoreGame(1, 3, m0, PARAMS).s === 0, "g1 標本 0 は logic で 0 点（v2: ageClass 3）");
-  eq(P.g1Lines("adult").map(function (l) { return l.def.type; }), ["line", "quad", "cubic"], "g1 おとなは直線 1・曲線 2");
-  eq(P.g1Lines("child").map(function (l) { return l.def.type; }), ["line", "line", "line"], "g1 こどもは直線 3");
-  eq(P.g1Lines("adult")[1].pts.length, 200, "g1 曲線は 200 点");
+  // PRJ-111: 段階ごとの本数 3〜8・曲線の数が増える
+  eq(AGES.map(function (a) { return P.g1Lines(a).length; }), [3, 4, 5, 6, 7, 8], "g1 段階ごとの本数 3/4/5/6/7/8");
+  eq(AGES.map(function (a) { return P.g1Lines(a).filter(function (l) { return l.def.type !== "line"; }).length; }), [0, 0, 2, 4, 5, 6], "g1 曲線の数 0/0/2/4/5/6");
+  eq(P.g1Lines(0).map(function (l) { return l.def.type; }), ["line", "line", "line"], "g1 未就学児は直線 3");
+  ok(P.g1Lines(5).some(function (l) { return l.id === "C3"; }), "g1 大人以上に Z 字（C3）");
+  eq(P.g1Lines(3)[1].pts.length, 200, "g1 曲線は 200 点");
+  ok(AGES.every(function (a) { return P.g1Lines(a).every(function (l) { return l.pts.every(function (q) { return q[0] >= 200 && q[0] <= 1080 && q[1] >= 205 && q[1] <= 635; }); }); }), "g1 全段階の線が板（190〜1090 × 200〜640）の内側");
+  ok(throws(function () { P.g1Lines("adult"); }) && throws(function () { P.g1Lines(6); }), "g1Lines 旧署名・範囲外は Error");
 })();
 
 // ---- g2 ----
@@ -108,7 +113,15 @@ var AGES = [0, 1, 2, 3, 4, 5];
 
 // ---- g4 ----
 (function () {
-  var lays = [P.g4Layout("adult", 2), P.g4Layout("adult", 3), P.g4Layout("child", 2), P.g4Layout("child", 3)];
+  // PRJ-111: 全問題の定義値＝BFS 最短手数（反転も）。旧おとな a5・旧こども c4 は従来の検算をそのまま使う
+  Object.keys(P.G4_PUZZLES).forEach(function (id) {
+    var l0 = P.g4Layout(id, 0), l1 = P.g4Layout(id, 1);
+    ok(P.g4Bfs(l0) === l0.shortest && P.g4Bfs(l1) === l1.shortest && l0.shortest <= 8, "g4 問題 " + id + " 最短 " + l0.shortest + " 手＝BFS（反転も）・8 以下");
+  });
+  eq(P.G4_STAGES.map(function (s) { return s.length; }), [1, 2, 2, 3, 3, 4], "g4 段階ごとの問題数 1/2/2/3/3/4");
+  ok(P.G4_STAGES.every(function (s) { return s.length < 3 || P.G4_PUZZLES[s[s.length - 1]].shortest === 8; }), "g4 3 問以上の段階は最後が矢印 8 個");
+  ok(P.G4_STAGES.every(function (s) { return s.length >= 3 || s.every(function (id) { return P.G4_PUZZLES[id].shortest < 8; }); }), "g4 2 問以下の段階に 8 手の問題はない");
+  var lays = [P.g4Layout("a5", 2), P.g4Layout("a5", 3), P.g4Layout("c4", 2), P.g4Layout("c4", 3)];
   eq(lays.map(P.g4Bfs), [5, 5, 4, 4], "g4 BFS 最短手数（おとな・反転・こども・反転）");
   eq(lays.map(function (l) { return l.shortest; }), [5, 5, 4, 4], "g4 定義値と一致");
   ok(lays[1].mirrored && !lays[0].mirrored, "g4 n 奇数で反転");
@@ -186,10 +199,12 @@ var AGES = [0, 1, 2, 3, 4, 5];
 // ---- 設定値 v2（PRJ-110 §3-3・AC-12: gameConfig(ageClass, mode)。g1/g2/g4 は 0〜2 child・3〜5 adult、g3 は段階表） ----
 (function () {
   var cfg = AGES.map(function (a) { return P.gameConfig(a, PARAMS.modeByAge[a]); });
-  eq(cfg.map(function (c) { return c.g1.tol; }), [24, 24, 24, 12, 12, 12], "gameConfig g1.tol 0〜2 child 24・3〜5 adult 12");
+  eq(cfg.map(function (c) { return c.g1.tol; }), [24, 22, 18, 16, 14, 12], "gameConfig g1.tol 段階別（PRJ-111）");
+  ok(cfg.every(function (c) { return c.g1.limitSec === 45 && c.g4.limitSec === 45; }), "gameConfig g1・g4 の制限 45 秒（PRJ-111）");
+  eq(cfg.map(function (c) { return c.g1.lines.length; }), [3, 4, 5, 6, 7, 8], "gameConfig g1.lines 本数");
   eq(cfg.map(function (c) { return c.g2.parts; }), [3, 3, 3, 5, 5, 5], "gameConfig g2.parts 3／5");
   eq(cfg.map(function (c) { return c.g2.snap; }), [40, 40, 40, 20, 20, 20], "gameConfig g2.snap 40／20");
-  eq(cfg.map(function (c) { return [c.g4.size, c.g4.obstacles]; }), [[4, 1], [4, 1], [4, 1], [5, 3], [5, 3], [5, 3]], "gameConfig g4.size・obstacles 4,1／5,3");
+  eq(cfg.map(function (c) { return c.g4.puzzles.length; }), [1, 2, 2, 3, 3, 4], "gameConfig g4.puzzles 問題数（PRJ-111）");
   eq(cfg.map(function (c) { return c.g3.lanes; }), [1, 1, 2, 2, 3, 3], "gameConfig g3.lanes 1/1/2/2/3/3");
   eq(cfg.map(function (c) { return c.g3.marks; }), [2, 2, 3, 4, 4, 5], "gameConfig g3.marks 2/2/3/4/4/5");
   eq(cfg.map(function (c) { return c.g3.speed; }), [96, 110, 130, 150, 170, 200], "gameConfig g3.speed");
@@ -229,6 +244,18 @@ var AGES = [0, 1, 2, 3, 4, 5];
   var m1 = { onLineRate: 50, maxDev: 40 };
   ok(L.scoreGame(1, 0, m1, PARAMS).p1 > L.scoreGame(1, 2, m1, PARAMS).p1, "AC-04 同じ入力で段階 0 の p1 > 段階 2 の p1");
   ok(near(L.scoreGame(3, 4, { correct: 25, wrong: 0, missed: 0 }, PARAMS).p2, (25 - 11) / (35 - 11) * 100), "B-1 検算 scoreGame(3,4,25).p2 = 58.3（2026-10-19 調整後の閾値 [11, 35]）");
+  // PRJ-111: 四の陣の複数問は 1 問ずつ従来の式で採点して平均（未成功・時間切れの問題は 0）
+  (function () {
+    var th = PARAMS.thresholds[5], best = { r: th.g4_runs[1] }, one = L.scoreGame(4, 5, { success: true, runs: best.r, shortest: 8, used: 8 }, PARAMS);
+    var all = L.scoreGame(4, 5, { success: [true, true, true, true], runs: [1, 1, 1, 1], shortest: [5, 6, 7, 8], used: [5, 6, 7, 8] }, PARAMS);
+    ok(near(one.s, 100) && near(all.s, 100), "g4 複数問 全問最良で 100", [one, all]);
+    var half = L.scoreGame(4, 5, { success: [true, true, false, false], runs: [1, 1, 0, 0], shortest: [5, 6, 7, 8], used: [5, 6, 0, 0] }, PARAMS);
+    ok(near(half.s, 50), "g4 4 問中 2 問を最良で解けば 50（残りは 0 として平均）", half);
+    var none = L.scoreGame(4, 5, { success: [false, false], runs: [3, 0], shortest: [5, 6], used: [0, 0] }, PARAMS);
+    ok(none.s === 0, "g4 全問未成功は 0", none);
+    var m = P.g4Metrics([{ success: true, runs: 2, used: 6 }], ["a5", "a6"]);
+    eq(m, { success: [true, false], runs: [2, 0], shortest: [5, 6], used: [6, 0] }, "g4Metrics 未到達の問題は未成功で埋める");
+  })();
   [6, -1, "3", "adult", 1.5, null].forEach(function (v) {
     ok(throws(function () { L.scoreGame(3, v, { correct: 1, wrong: 0, missed: 0 }, PARAMS); }), "AC-04 scoreGame ageClass " + JSON.stringify(v) + " は Error");
   });

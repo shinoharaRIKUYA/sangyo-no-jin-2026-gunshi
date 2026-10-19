@@ -4,7 +4,7 @@ SJGame[1] = {
   start: function (ctx) {
     "use strict";
     var P = SJPure, cfg = P.gameConfig(ctx.ageClass, ctx.mode).g1, tol = cfg.tol;
-    var lines = P.g1Lines(ctx.mode), NS = "http://www.w3.org/2000/svg";
+    var lines = P.g1Lines(ctx.ageClass), NS = "http://www.w3.org/2000/svg";
     var root = SJStage.el("div", "game g1", null, ctx.stageEl);
     var hud = SJStage.hud(root, SJTexts.games[0].name, ctx.progress, cfg.limitSec);
     var svg = document.createElementNS(NS, "svg");
@@ -34,7 +34,7 @@ SJGame[1] = {
       endC = mk("circle", { cx: pts[pts.length - 1][0], cy: pts[pts.length - 1][1], r: 20, "class": "g1-end" }, layer);
       mark = mk("circle", { cx: pts[0][0], cy: pts[0][1], r: 8, "class": "g1-mark" }, layer);
       lineStart = performance.now();
-      label.textContent = (cur + 1) + " / 3";
+      label.textContent = (cur + 1) + " / " + lines.length;
     }
     var label = SJStage.el("div", "g1-count", "", root);
 
@@ -84,7 +84,7 @@ SJGame[1] = {
       var m = metrics();
       var perLine = byLine.map(function (l) { return l.samples.length; });
       var valid = byLine.map(function (l) { return P.g1LineValid(l, cfg.minSamples) ? 1 : 0; });
-      resolveFn({ m: m, end: end, raw: { lines: doneCount, ms: lineMs, perLine: perLine, valid: valid } });
+      resolveFn({ m: m, end: end, raw: { lines: doneCount, total: lines.length, ms: lineMs, perLine: perLine, valid: valid } });
     }
     drawLine();
     return new Promise(function (resolve) {
