@@ -3,7 +3,7 @@ var SJGame = SJGame || {};
 SJGame[2] = {
   start: function (ctx) {
     "use strict";
-    var P = SJPure, S = SJStage, cfg = P.gameConfig(ctx.mode).g2;
+    var P = SJPure, S = SJStage, cfg = P.gameConfig(ctx.ageClass, ctx.mode).g2;
     var parts = P.g2Parts(ctx.mode), order = P.g2Order(ctx.n, parts.length), home = P.g2TrayLayout(parts, order);
     var root = S.el("div", "game g2", null, ctx.stageEl);
     var hud = S.hud(root, SJTexts.games[1].name, ctx.progress, cfg.limitSec);

@@ -1,6 +1,8 @@
-// 産業の陣2026「AI軍師の仕官相談所」診断ロジック（参照実装・純関数）
+// 産業の陣2026「AI軍師の仕官相談所」診断ロジック v2（参照実装・純関数）
 // 設計書_v1 §3-3（採点式）・§3-5（スコア→推挙 手順 1〜10）。DOM に触れない。ブラウザ（<script>）と Node の両方で読める。
 // ブラウザでは window.ShindanLogic、Node では require() の戻り値。
+// v2（PRJ-110 設計書_v1 §3-1）: 年齢段階 ageClass 0〜5。scoreGame は mode でなく ageClass で閾値を引く（params.thresholds[ageClass]）。
+//   mode（child/adult）は文言レジスタ（params.modeByAge[ageClass]）で、採点には使わない。params は validateParams で検査する（長さ 6 ほか）。
 //
 // ==== ゲーム組込み仕様（レビュー報告_v1 指摘 #2・#4、設計への指摘 3 の明文化。計算ルールは設計書_v1 §3-5 のまま） ====
 // 読込順: shindan_params.js → shindan_data.js → shindan_logic.js（通常の <script src> で、この順に読む）。
@@ -11,7 +13,7 @@
 // 呼び方: var res = ShindanLogic.recommend(input, SHINDAN_DATA, counts, SHINDAN_PARAMS);
 // input（すべて必須。外れた値は Error を投げる。黙って誤った結果は返さない）:
 //   day      数値 22 / 23 / 24（params.days。文字列 "22" は不可）
-//   ageClass 数値 0〜3（0 未就学／1 小1〜3／2 小4〜6／3 中学生以上）
+//   ageClass 数値 0〜5（0 未就学児／1 低学年／2 高学年／3 中学生／4 高校生／5 大人以上。params.ageClasses の添字）
 //   n        来場者番号（有限の数値。同点の軸順位を回すのに使う）
 //   s        [s_K1, s_K2, s_K3, s_K4] の長さ 4 の配列。各 0〜100 の数値（scoreGame の s）
 //   q1       素材の正式名 "木" / "金属" / "画面紙樹脂" / "荷物乗り物"、または "なし"（params.materials・noMaterial。略記「画面」等は不可）
@@ -26,6 +28,33 @@
 (function (root) {
   "use strict";
 
+  // ---- params の検査（v2。R2 §8-3「長さ 6 の検査」） --------------------------
+  // ageClasses・modeByAge・thresholds が同じ長さ（6）、modeByAge は child/adult、各閾値に 8 キー・各 [数値, 数値]、version は "v2" で始まる。
+  // 満たさねば Error。recommend・scoreGame の先頭で呼ぶ
+  var TH_KEYS = ["g1_onLineRate", "g1_maxDev", "g2_retries", "g2_seconds", "g3_accuracy", "g3_count", "g4_runs", "g4_ratio"];
+  var AGE_COUNT = 6;
+  function validateParams(params) {
+    var e = [];
+    if (!params || typeof params !== "object") { throw new Error("validateParams: params がオブジェクトでない"); }
+    if (typeof params.version !== "string" || params.version.indexOf("v2") !== 0) { e.push("version は \"v2\" で始まる文字列（値: " + JSON.stringify(params.version) + "）"); }
+    var A = params.ageClasses, M = params.modeByAge, T = params.thresholds;
+    if (!Array.isArray(A) || A.length !== AGE_COUNT) { e.push("ageClasses は長さ " + AGE_COUNT + " の配列（長さ: " + (Array.isArray(A) ? A.length : "配列でない") + "）"); }
+    if (!Array.isArray(M) || M.length !== AGE_COUNT) { e.push("modeByAge は長さ " + AGE_COUNT + " の配列（長さ: " + (Array.isArray(M) ? M.length : "配列でない") + "）"); }
+    else if (M.some(function (v) { return v !== "child" && v !== "adult"; })) { e.push("modeByAge の値は child/adult（値: " + JSON.stringify(M) + "）"); }
+    if (!Array.isArray(T) || T.length !== AGE_COUNT) { e.push("thresholds は長さ " + AGE_COUNT + " の配列（長さ: " + (Array.isArray(T) ? T.length : "配列でない") + "）"); }
+    else {
+      for (var i = 0; i < T.length; i++) {
+        var th = T[i];
+        if (!th || typeof th !== "object") { e.push("thresholds[" + i + "] がオブジェクトでない"); continue; }
+        for (var k = 0; k < TH_KEYS.length; k++) {
+          var v = th[TH_KEYS[k]];
+          if (!Array.isArray(v) || v.length !== 2 || !isNum(v[0]) || !isNum(v[1])) { e.push("thresholds[" + i + "]." + TH_KEYS[k] + " は [数値, 数値]"); }
+        }
+      }
+    }
+    if (e.length) { throw new Error("validateParams: params が不正: " + e.join("／")); }
+  }
+
   // ---- §3-3 採点 ----------------------------------------------------------
 
   // p = clamp((x − 悪値) / (良値 − 悪値), 0, 1) × 100。「少ないほど良」は悪値 > 良値になるだけで式は同じ
@@ -39,14 +68,17 @@
 
   function num(v, dflt) { return (typeof v === "number" && isFinite(v)) ? v : dflt; }
 
-  // game: 1〜4（一の陣〜四の陣）、mode: "adult" / "child"、m: 観測データから作った指標
+  // game: 1〜4（一の陣〜四の陣）、ageClass: 0〜5（params.thresholds の添字）、m: 観測データから作った指標
   //  一の陣: { onLineRate(%), maxDev(px) } または { inSamples, totalSamples, maxDev }
   //  二の陣: { retries, seconds, completed }（未完成は上限 60 秒）
   //  三の陣: { correct, wrong, missed } または { accuracy(%), count }
   //  四の陣: { success, runs, shortest, used }（未成功は両指標 0）
   // 途中でやめた・時間切れは、その時点のログで計算する（欠損を作らない）
-  function scoreGame(game, mode, m, params) {
-    var th = params.thresholds[mode === "adult" ? "adult" : "child"];
+  // v2: 閾値が無い段階（ageClass が整数でない・範囲外）は黙って別の閾値に落とさず Error を投げる（R2 §7）
+  function scoreGame(game, ageClass, m, params) {
+    validateParams(params);
+    var th = (Number.isInteger(ageClass) && ageClass >= 0) ? params.thresholds[ageClass] : undefined;
+    if (!th) { throw new Error("scoreGame: ageClass " + JSON.stringify(ageClass) + " の閾値がない（0〜" + (params.thresholds.length - 1) + "）"); }
     var w = params.metricWeights;
     var p1 = 0, p2 = 0;
     m = m || {};
@@ -115,6 +147,7 @@
   }
 
   // 手順 1: 候補の絞り込み
+  // 年齢下限区分（出展者側の値 0〜3・9）と来場者の ageClass（0〜5）は別の尺度だが、比較 a <= ageClass は添字 0〜5 でそのまま成り立つ（R2 §3）
   function eligible(row, day, ageClass) {
     if (!isRecommendable(row)) { return false; }
     if (row["d" + day] !== 1) { return false; }
@@ -171,7 +204,8 @@
     var e = [];
     if (!input || typeof input !== "object") { throw new Error("recommend: input がオブジェクトでない"); }
     if (!isNum(input.day) || params.days.indexOf(input.day) < 0) { e.push("day は数値 " + params.days.join("/") + "（値: " + JSON.stringify(input.day) + "）"); }
-    if (!isNum(input.ageClass) || [0, 1, 2, 3].indexOf(input.ageClass) < 0) { e.push("ageClass は数値 0〜3（値: " + JSON.stringify(input.ageClass) + "）"); }
+    // v2: ageClass は params.ageClasses の添字（整数 0〜length−1）
+    if (!Number.isInteger(input.ageClass) || input.ageClass < 0 || input.ageClass >= params.ageClasses.length) { e.push("ageClass は整数 0〜" + (params.ageClasses.length - 1) + "（値: " + JSON.stringify(input.ageClass) + "）"); }
     if (!isNum(input.n)) { e.push("n は数値（値: " + JSON.stringify(input.n) + "）"); }
     if (!Array.isArray(input.s) || input.s.length !== 4 ||
         input.s.some(function (v) { return !isNum(v) || v < 0 || v > 100; })) { e.push("s は 0〜100 の数値 4 個の配列（値: " + JSON.stringify(input.s) + "）"); }
@@ -184,6 +218,7 @@
   }
 
   function recommend(input, data, counts, params) {
+    validateParams(params);
     validateInput(input, params);
     var rows = rowsOf(data);
     counts = counts || {};
@@ -236,14 +271,15 @@
     return out;
   }
 
-  // 年齢区分 → モード
+  // 年齢段階 → 文言レジスタ（child/adult）。採点には使わない（v2。D-11）
   function modeOf(ageClass, params) { return params.modeByAge[ageClass]; }
 
   var api = {
+    version: "v2",
     clampScore: clampScore, scoreGame: scoreGame, axisProfile: axisProfile,
     isRecommendable: isRecommendable, eligible: eligible, cBar: cBar,
     scoreProgram: scoreProgram, compareCand: compareCand, recommend: recommend,
-    updateCounts: updateCounts, modeOf: modeOf, validateInput: validateInput
+    updateCounts: updateCounts, modeOf: modeOf, validateInput: validateInput, validateParams: validateParams
   };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   else { root.ShindanLogic = api; }

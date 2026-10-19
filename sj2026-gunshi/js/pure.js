@@ -19,14 +19,30 @@
     };
   }
 
-  // ---- 各陣の設定（A-3。AC-21 で window.__sj.config に出す） -------------
-  function gameConfig(mode) {
+  // ---- 三の陣 v2 の段階表（PRJ-110 付録 B-2-1。添字 = ageClass 0〜5。前提値・10/20 で見直す） --------
+  var G3_STAGES = [
+    { lanes: 1, marks: 2, speed: 96,  intervalSec: 2.4, grabMargin: 24, limitSec: 40 },   // 0 未就学児
+    { lanes: 1, marks: 2, speed: 110, intervalSec: 2.0, grabMargin: 24, limitSec: 40 },   // 1 低学年
+    { lanes: 2, marks: 3, speed: 130, intervalSec: 1.6, grabMargin: 12, limitSec: 40 },   // 2 高学年
+    { lanes: 2, marks: 4, speed: 150, intervalSec: 1.3, grabMargin: 12, limitSec: 40 },   // 3 中学生
+    { lanes: 3, marks: 4, speed: 170, intervalSec: 1.1, grabMargin: 12, limitSec: 40 },   // 4 高校生
+    { lanes: 3, marks: 5, speed: 200, intervalSec: 0.9, grabMargin: 12, limitSec: 40 }    // 5 大人以上
+  ];
+
+  // ---- 各陣の設定（A-3。AC-11 で window.__sj.config に出す） -------------
+  // v2（PRJ-110 §3-3）: gameConfig(ageClass, mode)。g1・g2・g4 は mode（文言レジスタ child/adult）で 2 段階のまま、
+  // g3 だけ G3_STAGES[ageClass] から引く。ageClass が範囲外なら Error（黙って別の段階に落とさない）
+  function gameConfig(ageClass, mode) {
     var adult = mode === "adult";
+    var st = G3_STAGES[ageClass];
+    if (!Number.isInteger(ageClass) || !st) { throw new Error("gameConfig: ageClass " + JSON.stringify(ageClass) + " の段階表がない（0〜" + (G3_STAGES.length - 1) + "）"); }
+    var g3 = {}; for (var k in st) { if (Object.prototype.hasOwnProperty.call(st, k)) { g3[k] = st[k]; } }
     return {
       mode: adult ? "adult" : "child",
+      ageClass: ageClass,
       g1: { tol: adult ? 12 : 24, lines: adult ? ["直線", "曲線", "曲線"] : ["直線", "直線", "直線"], limitSec: 60, guideSec: 45, sampleMs: 50, minSamples: 20 },
       g2: { parts: adult ? 5 : 3, snap: adult ? 20 : 40, limitSec: 60, grabMargin: 12 },
-      g3: { lanes: adult ? 3 : 2, speed: adult ? 160 : 96, intervalSec: adult ? 1.2 : 2.0, downKey: adult, limitSec: 40 },
+      g3: g3,
       g4: { size: adult ? 5 : 4, obstacles: adult ? 3 : 1, maxCmds: 8, stepMs: 300, limitSec: 60 }
     };
   }
@@ -178,31 +194,53 @@
     return best;
   }
 
-  // ---- 三の陣（A-3-3） ---------------------------------------------------
-  var G3_LANES = [
-    { id: "L", key: "ArrowLeft", name: "一番蔵", color: "shu", mark: "●" },
-    { id: "M", key: "ArrowDown", name: "二番蔵", color: "ai", mark: "▲" },
-    { id: "R", key: "ArrowRight", name: "三番蔵", color: "matsu", mark: "■" }
+  // ---- 三の陣 v2（PRJ-110 付録 B-2。ドラッグ方式・複数レーン・蔵 2〜5） --------------------
+  // マーク 5 種（添字 = mark。既存の色トークンのみ）。v1 の key（矢印キー）は廃止
+  var G3_MARKS = [
+    { mark: "●", color: "shu", name: "一番蔵" },
+    { mark: "▲", color: "ai", name: "二番蔵" },
+    { mark: "■", color: "matsu", name: "三番蔵" },
+    { mark: "◆", color: "kin", name: "四番蔵" },
+    { mark: "★", color: "sumi", name: "五番蔵" }
   ];
-  function g3Lanes(mode) { return mode === "adult" ? G3_LANES.slice() : [G3_LANES[0], G3_LANES[2]]; }
-  // 荷 i 番目の行き先（seed = n の乱数列で一様に選ぶ）
-  function g3Labels(n, count, mode) {
-    var lanes = g3Lanes(mode), rnd = mulberry32(n), out = [];
-    for (var i = 0; i < count; i++) { out.push(lanes[Math.floor(rnd() * lanes.length)].id); }
+  var G3_BOX = 90;                                  // 荷の一辺
+  function g3Marks(count) { return G3_MARKS.slice(0, count); }
+  // 盤面（論理 1280×720。B-2-3）。belts[j] = {y1, y2, boxY}（高さ 100・荷は y+5）、bins[k] = {x1, y1, x2, y2, mark}（y 500〜680・左右余白 40・間隔 20）
+  var G3_BELT_Y = { 1: [240], 2: [170, 290], 3: [130, 240, 350] };
+  function g3Layout(lanes, marks) {
+    var ys = G3_BELT_Y[lanes] || G3_BELT_Y[1], belts = [], bins = [];
+    for (var j = 0; j < ys.length; j++) { belts.push({ y1: ys[j], y2: ys[j] + 100, boxY: ys[j] + 5 }); }
+    var w = (1200 - 20 * (marks - 1)) / marks;
+    for (var k = 0; k < marks; k++) { var x1 = 40 + k * (w + 20); bins.push({ x1: x1, y1: 500, x2: x1 + w, y2: 680, mark: k }); }
+    return { belts: belts, bins: bins };
+  }
+  // 荷 i 番目のマーク（seed = n の乱数列で 0〜marks−1 を一様に選ぶ）
+  function g3Labels(n, count, marks) {
+    var rnd = mulberry32(n), out = [];
+    for (var i = 0; i < count; i++) { out.push(Math.floor(rnd() * marks)); }
     return out;
   }
-  // 入力 1 回の処理。boxes = [{x, lane, done}]。押したレーン lane（"L"/"M"/"R"）
-  // 戻り値: {ignored:true}（数えない）または {index, correct}
-  function g3Press(boxes, lane, mode) {
-    if (mode !== "adult" && lane === "M") { return { ignored: true }; }
-    var idx = -1;
+  // つかみ判定: boxes = [{x, lane, mark, done}]（配列にあるものは出現済み）。(x,y) が荷の矩形＋余白 margin に入る荷のうち
+  // b.x が最大のもの（先頭）の添字。対象は !done・x ≤ 1280。無ければ −1
+  function g3Pick(boxes, layout, x, y, margin) {
+    var idx = -1, m = margin || 0;
     for (var i = 0; i < boxes.length; i++) {
       var b = boxes[i];
       if (b.done || b.x > 1280) { continue; }
+      var belt = layout.belts[b.lane]; if (!belt) { continue; }
+      var by = belt.boxY;
+      if (x < b.x - m || x > b.x + G3_BOX + m || y < by - m || y > by + G3_BOX + m) { continue; }
       if (idx < 0 || b.x > boxes[idx].x) { idx = i; }
     }
-    if (idx < 0) { return { ignored: true }; }
-    return { index: idx, correct: boxes[idx].lane === lane };
+    return idx;
+  }
+  // 落とし判定: 荷の中心 (cx,cy) を含む蔵があれば {hit:true, correct: 蔵のマーク===mark, bin}、無ければ {hit:false}
+  function g3Drop(bins, cx, cy, mark) {
+    for (var k = 0; k < bins.length; k++) {
+      var b = bins[k];
+      if (cx >= b.x1 && cx <= b.x2 && cy >= b.y1 && cy <= b.y2) { return { hit: true, correct: b.mark === mark, bin: b }; }
+    }
+    return { hit: false };
   }
   // 集計: results = "correct" / "wrong" / "missed" の列
   function g3Tally(results) {
@@ -318,7 +356,7 @@
     g1Filter: g1Filter, g1LineValid: g1LineValid,
     g2Parts: g2Parts, g2Order: g2Order, g2TrayLayout: g2TrayLayout, g2Judge: g2Judge, g2Metrics: g2Metrics, g2Hit: g2Hit, g2PickPart: g2PickPart,
     G2_BOARD: G2_BOARD, G2_TRAY: G2_TRAY,
-    g3Lanes: g3Lanes, g3Labels: g3Labels, g3Press: g3Press, g3Tally: g3Tally,
+    G3_STAGES: G3_STAGES, G3_MARKS: G3_MARKS, G3_BOX: G3_BOX, g3Marks: g3Marks, g3Layout: g3Layout, g3Labels: g3Labels, g3Pick: g3Pick, g3Drop: g3Drop, g3Tally: g3Tally,
     g4Layout: g4Layout, g4Bfs: g4Bfs, g4Run: g4Run, isWall: isWall,
     applyOverrides: applyOverrides, effectiveParams: effectiveParams,
     reserveLabel: reserveLabel, ageLabel: ageLabel, durationLabel: durationLabel, costLabel: costLabel, daysLabel: daysLabel

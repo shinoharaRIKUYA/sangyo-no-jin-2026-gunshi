@@ -108,7 +108,7 @@ function validate_finish(array $b): void {
     if (!sj_is_day($b['day'])) { bad('day'); }
     if (!sj_is_int_in($b['n'], 1, 2000000)) { bad('n'); }
     if (!in_array($b['n_source'], ['server', 'local'], true)) { bad('n_source'); }
-    if (!sj_is_int_in($b['ageClass'], 0, 3)) { bad('ageClass'); }
+    if (!sj_is_int_in($b['ageClass'], 0, 5)) { bad('ageClass'); }   // v2: 年齢段階 0〜5（PRJ-110）
     if (!in_array($b['mode'], ['adult', 'child'], true)) { bad('mode'); }
     if (!is_bool($b['degrade'])) { bad('degrade'); }
     // games: 3 件（縮退）か 4 件

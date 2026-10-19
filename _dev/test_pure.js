@@ -1,4 +1,5 @@
-// node: pure.js の単体テスト（AC-07・AC-14）。使い方: node output\_dev\test_pure.js [settings.json のパス]
+// node: pure.js・logic v2 の単体テスト（PRJ-107 AC-07・AC-14 ＋ PRJ-110 AC-03・04・12・17）。使い方: node _dev\test_pure.js [settings.json のパス]
+// v2（PRJ-110）: scoreGame(game, ageClass 0〜5, m, params)・gameConfig(ageClass, mode)・三の陣はドラッグ方式（g3Pick/g3Drop/g3Labels(n,count,marks)）
 "use strict";
 var path = require("path"), fs = require("fs");
 var base = path.join(__dirname, "..", "sj2026-gunshi");
@@ -12,6 +13,11 @@ function ok(cond, name, info) {
   if (cond) { pass++; } else { fail++; console.log("FAIL " + name + (info !== undefined ? " " + JSON.stringify(info) : "")); }
 }
 function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { got: a, want: b }); }
+function near(a, b, eps) { return Math.abs(a - b) <= (eps || 1e-6); }
+// fn が Error を投げれば true（re があればメッセージが一致するときだけ true）
+function throws(fn, re) { try { fn(); return false; } catch (e) { return re ? re.test(String(e.message || e)) : true; } }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+var AGES = [0, 1, 2, 3, 4, 5];
 
 // ---- g1 ----
 (function () {
@@ -26,7 +32,7 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { go
   eq(mc, { inSamples: 5, totalSamples: 7, maxDev: 30 }, "g1 指標 こども tol 24");
   var m0 = P.g1Metrics([], 12);
   ok(m0.totalSamples === 0 && !("maxDev" in m0), "g1 totalSamples 0 で maxDev なし", m0);
-  ok(L.scoreGame(1, "adult", m0, PARAMS).s === 0, "g1 標本 0 は logic で 0 点");
+  ok(L.scoreGame(1, 3, m0, PARAMS).s === 0, "g1 標本 0 は logic で 0 点（v2: ageClass 3）");
   eq(P.g1Lines("adult").map(function (l) { return l.def.type; }), ["line", "quad", "cubic"], "g1 おとなは直線 1・曲線 2");
   eq(P.g1Lines("child").map(function (l) { return l.def.type; }), ["line", "line", "line"], "g1 こどもは直線 3");
   eq(P.g1Lines("adult")[1].pts.length, 200, "g1 曲線は 200 点");
@@ -48,28 +54,56 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { go
   eq(P.g2Metrics(2, 1000, 24360, true), { retries: 2, seconds: 23.4, completed: true }, "g2 指標");
 })();
 
-// ---- g3 ----
+// ---- g3 v2（PRJ-110 付録 B-2・AC-17。ドラッグ方式: 盤面 g3Layout・札 g3Labels(n,count,marks)・つかみ g3Pick・落とし g3Drop） ----
 (function () {
-  var boxes = [{ x: 100, lane: "L", done: false }, { x: 400, lane: "R", done: false }, { x: -50, lane: "M", done: false }];
-  var r1 = P.g3Press(boxes, "R", "adult");
-  eq(r1, { index: 1, correct: true }, "g3 先頭（最も右）の荷を処理・正答");
+  // 盤面（B-2-3）: ベルト y・蔵 x 40〜1240・すき間 20・y 500〜680。蔵の幅は式 (1200−20×(marks−1))/marks（設計変更票 #3）
+  var lay1 = P.g3Layout(1, 2), lay2 = P.g3Layout(2, 3), lay3 = P.g3Layout(3, 4), lay5 = P.g3Layout(3, 5);
+  eq([lay1, lay2, lay3].map(function (l) { return l.belts.map(function (b) { return b.y1; }); }), [[240], [170, 290], [130, 240, 350]], "g3Layout ベルト y（1／2／3 レーン）");
+  eq(lay1.belts[0], { y1: 240, y2: 340, boxY: 245 }, "g3Layout ベルト高さ 100・荷は y+5");
+  eq(lay1.bins.map(function (b) { return [b.x1, b.x2, b.mark]; }), [[40, 630, 0], [650, 1240, 1]], "g3Layout 蔵 2 個 幅 590");
+  ok(near(lay2.bins[0].x2 - lay2.bins[0].x1, 1160 / 3) && near(lay2.bins[2].x2, 1240), "g3Layout 蔵 3 個 幅 386.67・右端 1240");
+  eq(lay3.bins.map(function (b) { return b.x1; }), [40, 345, 650, 955], "g3Layout 蔵 4 個 幅 285");
+  eq(lay5.bins.map(function (b) { return b.x2 - b.x1; }), [224, 224, 224, 224, 224], "g3Layout 蔵 5 個 幅 224");
+  ok(lay5.bins.every(function (b) { return b.y1 === 500 && b.y2 === 680; }), "g3Layout 蔵 y 500〜680");
+  eq(P.G3_MARKS.length, 5, "G3_MARKS は 5 種");
+  eq(P.g3Marks(3).map(function (m) { return m.mark; }), ["●", "▲", "■"], "g3Marks(3) は先頭 3 種");
+  // 札（seed = n。値域 0〜marks−1・再現・seed 差）
+  var lb = P.g3Labels(13, 100, 3);
+  ok(lb.length === 100 && lb.every(function (x) { return Number.isInteger(x) && x >= 0 && x < 3; }), "g3Labels 値域 0〜marks−1");
+  eq(P.g3Labels(13, 10, 4), P.g3Labels(13, 10, 4), "g3Labels は n で再現");
+  ok(JSON.stringify(P.g3Labels(13, 20, 4)) !== JSON.stringify(P.g3Labels(14, 20, 4)), "g3Labels seed が違えば列が違う");
+  ok(P.g3Labels(7, 200, 5).indexOf(4) >= 0 && P.g3Labels(7, 200, 2).indexOf(2) < 0, "g3Labels marks 5 で 4 が出る・marks 2 で 2 は出ない");
+  // つかみ（荷 90×90＋余白。先頭＝x 最大。done・x>1280 は対象外）
+  var boxes = [{ x: 100, lane: 0, mark: 0, done: false }, { x: 400, lane: 0, mark: 1, done: false }, { x: 1300, lane: 0, mark: 0, done: false }];
+  eq(P.g3Pick(boxes, lay1, 450, 290, 12), 1, "g3Pick 矩形内");
+  eq(P.g3Pick(boxes, lay1, 380, 290, 12), -1, "g3Pick 余白 12 の外（左 20）");
+  eq(P.g3Pick(boxes, lay1, 380, 290, 24), 1, "g3Pick 段階 0 の余白 24 なら入る");
+  eq(P.g3Pick(boxes, lay1, 450, 232, 12), -1, "g3Pick 上の余白の外");
+  eq(P.g3Pick(boxes, lay1, 450, 233, 12), 1, "g3Pick 上の余白の内");
+  eq(P.g3Pick(boxes, lay1, 1320, 290, 12), -1, "g3Pick x>1280 の荷は対象外");
   boxes[1].done = true;
-  var r2 = P.g3Press(boxes, "R", "adult");
-  eq(r2, { index: 0, correct: false }, "g3 誤答");
-  boxes[0].done = true;
-  eq(P.g3Press(boxes, "M", "child"), { ignored: true }, "g3 こどもの ↓ は無視");
-  boxes[2].done = true;
-  eq(P.g3Press(boxes, "L", "adult"), { ignored: true }, "g3 荷が無いときの入力は無視");
+  eq(P.g3Pick(boxes, lay1, 450, 290, 12), -1, "g3Pick done は対象外");
+  var ov = [{ x: 200, lane: 0, mark: 0, done: false }, { x: 260, lane: 0, mark: 1, done: false }];
+  eq(P.g3Pick(ov, lay1, 270, 290, 12), 1, "g3Pick 重なりは先頭（x 大）を優先");
+  eq(P.g3Pick(ov, lay1, 205, 290, 12), 0, "g3Pick 先頭に当たらなければ後ろ");
+  var b2 = [{ x: 300, lane: 1, mark: 2, done: false }];
+  eq(P.g3Pick(b2, lay2, 340, 340, 12), 0, "g3Pick 2 レーン目（boxY 295）");
+  eq(P.g3Pick(b2, lay2, 340, 220, 12), -1, "g3Pick 1 レーン目の位置ではつかめない");
+  eq(P.g3Pick([{ x: 300, lane: 5, mark: 0, done: false }], lay2, 340, 340, 12), -1, "g3Pick 存在しないレーンは無視");
+  // 落とし（荷の中心が蔵の矩形内か・マーク一致か）
+  var d = P.g3Drop(lay1.bins, 945, 590, 1);
+  eq([d.hit, d.correct, d.bin.mark], [true, true, 1], "g3Drop 二番蔵に ▲ は correct");
+  eq(P.g3Drop(lay1.bins, 945, 590, 0).correct, false, "g3Drop 二番蔵に ● は wrong");
+  eq(P.g3Drop(lay1.bins, 640, 590, 0), { hit: false }, "g3Drop すき間（x 630〜650）は hit なし");
+  eq(P.g3Drop(lay1.bins, 300, 290, 0), { hit: false }, "g3Drop ベルト上は hit なし");
+  eq(P.g3Drop(lay1.bins, 40, 500, 0).hit, true, "g3Drop 角 (40,500) は含む");
+  eq(P.g3Drop(lay1.bins, 300, 681, 0), { hit: false }, "g3Drop y 681 は外");
+  eq(P.g3Drop(lay5.bins, 1130, 600, 4).correct, true, "g3Drop 五番蔵に ★ は correct");
   eq(P.g3Tally(["correct", "wrong", "missed", "correct", "missed"]), { correct: 2, wrong: 1, missed: 2 }, "g3 集計");
-  var lc = P.g3Labels(13, 100, "child");
-  ok(lc.every(function (x) { return x === "L" || x === "R"; }), "g3 こどもの札は 2 行き先");
-  eq(P.g3Labels(13, 10, "adult"), P.g3Labels(13, 10, "adult"), "g3 札は n で再現");
-  // すべて逆キー → correct 0・wrong>0
-  var bx = P.g3Labels(5, 10, "adult").map(function (l, i) { return { x: 1000 - i * 100, lane: l, done: false }; }), res = [];
-  var opp = { L: "R", R: "L", M: "L" };
-  for (var i = 0; i < bx.length; i++) { var t = P.g3Press(bx, opp[bx[i].lane], "adult"); bx[t.index].done = true; res.push(t.correct ? "correct" : "wrong"); }
-  var tl = P.g3Tally(res);
-  ok(tl.correct === 0 && tl.wrong > 0, "g3 すべて逆キーで correct=0・wrong>0", tl);
+  ok(!("g3Press" in P) && !("g3Lanes" in P) && !("G3_LANES" in P), "g3Press・g3Lanes（v1 キー方式）は削除済み");
+  // 段階表（B-2-1）
+  eq(P.G3_STAGES.map(function (s) { return [s.lanes, s.marks]; }), [[1, 2], [1, 2], [2, 3], [2, 4], [3, 4], [3, 5]], "G3_STAGES レーン・マーク");
+  eq(P.G3_STAGES.map(function (s) { return s.grabMargin; }), [24, 24, 12, 12, 12, 12], "G3_STAGES 余白（段階 0・1 は 24）");
 })();
 
 // ---- g4 ----
@@ -103,9 +137,9 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { go
   eq(P.g1Filter([ln(seq(19))].concat(empty), 20), [], "g1Filter 標本 19 個・未完了は無効");
   eq(P.g1Filter([ln([5, 6], true), ln(seq(20)), ln([7])], 20), [5, 6].concat(seq(20)), "g1Filter 有効線だけを連結（無効線は飛ばす）");
   var m1 = P.g1Metrics(P.g1Filter([ln([0])].concat(empty), 20), 12);
-  ok(m1.totalSamples === 0 && !("maxDev" in m1) && L.scoreGame(1, "adult", m1, PARAMS).s === 0, "g1 標本 1 個だけは totalSamples 0 → logic で 0 点", m1);
+  ok(m1.totalSamples === 0 && !("maxDev" in m1) && L.scoreGame(1, 3, m1, PARAMS).s === 0, "g1 標本 1 個だけは totalSamples 0 → logic で 0 点", m1);
   var m2 = P.g1Metrics(P.g1Filter([ln(seq(20).map(function () { return 0; }))].concat(empty), 20), 12);
-  ok(m2.totalSamples === 20 && L.scoreGame(1, "adult", m2, PARAMS).s > 0, "g1 標本 20 個（線上）は採点される", m2);
+  ok(m2.totalSamples === 20 && L.scoreGame(1, 3, m2, PARAMS).s > 0, "g1 標本 20 個（線上）は採点される", m2);
 })();
 
 // ---- g2 つかみ判定（設計変更票 #2 §3-5・AC-33 (1)） ----
@@ -149,12 +183,56 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { go
   eq(H.main[0] + H.sub[1], "はみ出さず、最後までていねいに仕上げる手を持っている。組み立てる力もあわせ持つ。", "一言 主 K1×従 K2 の表示例");
 })();
 
-// ---- 設定値（AC-21・AC-21'） ----
+// ---- 設定値 v2（PRJ-110 §3-3・AC-12: gameConfig(ageClass, mode)。g1/g2/g4 は 0〜2 child・3〜5 adult、g3 は段階表） ----
 (function () {
-  var c = P.gameConfig("child"), d = P.gameConfig("adult");
-  eq([c.g1.tol, d.g1.tol, c.g2.parts, d.g2.parts, c.g2.snap, d.g2.snap, c.g3.lanes, d.g3.lanes, c.g3.speed, d.g3.speed, c.g3.downKey,
-    c.g4.size, c.g4.obstacles, d.g4.size, d.g4.obstacles], [24, 12, 3, 5, 40, 20, 2, 3, 96, 160, false, 4, 1, 5, 3], "設定値 こども／おとな");
-  eq([c.g1.minSamples, d.g1.minSamples, c.g2.grabMargin, d.g2.grabMargin], [20, 20, 12, 12], "設定値 g1.minSamples=20・g2.grabMargin=12（両モード）");
+  var cfg = AGES.map(function (a) { return P.gameConfig(a, PARAMS.modeByAge[a]); });
+  eq(cfg.map(function (c) { return c.g1.tol; }), [24, 24, 24, 12, 12, 12], "gameConfig g1.tol 0〜2 child 24・3〜5 adult 12");
+  eq(cfg.map(function (c) { return c.g2.parts; }), [3, 3, 3, 5, 5, 5], "gameConfig g2.parts 3／5");
+  eq(cfg.map(function (c) { return c.g2.snap; }), [40, 40, 40, 20, 20, 20], "gameConfig g2.snap 40／20");
+  eq(cfg.map(function (c) { return [c.g4.size, c.g4.obstacles]; }), [[4, 1], [4, 1], [4, 1], [5, 3], [5, 3], [5, 3]], "gameConfig g4.size・obstacles 4,1／5,3");
+  eq(cfg.map(function (c) { return c.g3.lanes; }), [1, 1, 2, 2, 3, 3], "gameConfig g3.lanes 1/1/2/2/3/3");
+  eq(cfg.map(function (c) { return c.g3.marks; }), [2, 2, 3, 4, 4, 5], "gameConfig g3.marks 2/2/3/4/4/5");
+  eq(cfg.map(function (c) { return c.g3.speed; }), [96, 110, 130, 150, 170, 200], "gameConfig g3.speed");
+  eq(cfg.map(function (c) { return c.g3.intervalSec; }), [2.4, 2.0, 1.6, 1.3, 1.1, 0.9], "gameConfig g3.intervalSec");
+  ok(cfg.every(function (c) { return c.g3.limitSec === 40 && !("downKey" in c.g3); }), "gameConfig g3.limitSec 40・downKey なし");
+  eq(cfg.map(function (c) { return c.mode; }), PARAMS.modeByAge, "gameConfig mode は modeByAge と一致");
+  eq(cfg.map(function (c) { return c.ageClass; }), AGES, "gameConfig ageClass を返す");
+  ok(cfg.every(function (c) { return c.g1.minSamples === 20 && c.g2.grabMargin === 12; }), "設定値 g1.minSamples=20・g2.grabMargin=12（全段階）");
+  ok(throws(function () { P.gameConfig(6, "adult"); }) && throws(function () { P.gameConfig(-1, "child"); }) && throws(function () { P.gameConfig("adult"); }),
+    "gameConfig ageClass 6・−1・\"adult\"（旧署名）は Error");
+  var c3 = P.gameConfig(3, "adult"); c3.g3.speed = 1;
+  eq(P.G3_STAGES[3].speed, 150, "gameConfig g3 は段階表の複製（書き換えが漏れない）");
+})();
+
+// ---- logic v2（PRJ-110 §3-1・B-1。AC-03 validateParams・AC-04 scoreGame(game, ageClass, m)） ----
+(function () {
+  eq([PARAMS.version, PARAMS.ageClasses.length, PARAMS.modeByAge.length, PARAMS.thresholds.length], ["v2", 6, 6, 6], "params v2 長さ 6");
+  ok(!throws(function () { L.validateParams(PARAMS); }), "validateParams 正本は通る");
+  var P5 = clone(PARAMS); P5.thresholds = P5.thresholds.slice(0, 5);
+  ok(throws(function () { L.validateParams(P5); }, /6/), "AC-03 thresholds 5 要素は Error（メッセージに 6）");
+  var PJ = clone(PARAMS); PJ.modeByAge[3] = "junior";
+  ok(throws(function () { L.validateParams(PJ); }, /child\/adult/), "AC-03 modeByAge junior は Error（child/adult を含む）");
+  var PK = clone(PARAMS); delete PK.thresholds[2].g3_count;
+  ok(throws(function () { L.validateParams(PK); }, /g3_count/), "validateParams 閾値キー欠落は Error");
+  // 悪値→0・良値→100（全段階×4 ゲーム）
+  AGES.forEach(function (a) {
+    var th = PARAMS.thresholds[a];
+    var g1b = L.scoreGame(1, a, { onLineRate: th.g1_onLineRate[0], maxDev: th.g1_maxDev[0] }, PARAMS), g1g = L.scoreGame(1, a, { onLineRate: th.g1_onLineRate[1], maxDev: th.g1_maxDev[1] }, PARAMS);
+    ok(g1b.s === 0 && g1g.s === 100, "scoreGame g1 a=" + a + " 悪値 0・良値 100", [g1b, g1g]);
+    var g2b = L.scoreGame(2, a, { retries: th.g2_retries[0], seconds: th.g2_seconds[0], completed: true }, PARAMS), g2g = L.scoreGame(2, a, { retries: th.g2_retries[1], seconds: th.g2_seconds[1], completed: true }, PARAMS);
+    ok(g2b.s === 0 && g2g.s === 100, "scoreGame g2 a=" + a + " 悪値 0・良値 100", [g2b, g2g]);
+    var g3b = L.scoreGame(3, a, { correct: th.g3_count[0], wrong: 0, missed: 0 }, PARAMS), g3g = L.scoreGame(3, a, { correct: th.g3_count[1], wrong: 0, missed: 0 }, PARAMS);
+    ok(g3b.p2 === 0 && g3g.p2 === 100 && g3g.s === 100, "AC-04 scoreGame g3 a=" + a + " count 悪値→p2 0・良値→p2 100", [g3b, g3g]);
+    var g4b = L.scoreGame(4, a, { success: true, runs: th.g4_runs[0], shortest: th.g4_ratio[0] * 10, used: 10 }, PARAMS), g4g = L.scoreGame(4, a, { success: true, runs: th.g4_runs[1], shortest: 10, used: 10 }, PARAMS);
+    ok(near(g4b.s, 0) && near(g4g.s, 100), "scoreGame g4 a=" + a + " 悪値 0・良値 100", [g4b, g4g]);
+  });
+  var m1 = { onLineRate: 50, maxDev: 40 };
+  ok(L.scoreGame(1, 0, m1, PARAMS).p1 > L.scoreGame(1, 2, m1, PARAMS).p1, "AC-04 同じ入力で段階 0 の p1 > 段階 2 の p1");
+  ok(near(L.scoreGame(3, 4, { correct: 25, wrong: 0, missed: 0 }, PARAMS).p2, (25 - 13) / (40 - 13) * 100), "B-1 検算 scoreGame(3,4,25).p2 = 44.4");
+  [6, -1, "3", "adult", 1.5, null].forEach(function (v) {
+    ok(throws(function () { L.scoreGame(3, v, { correct: 1, wrong: 0, missed: 0 }, PARAMS); }), "AC-04 scoreGame ageClass " + JSON.stringify(v) + " は Error");
+  });
+  eq(AGES.map(function (a) { return L.modeOf(a, PARAMS); }), ["child", "child", "child", "adult", "adult", "adult"], "modeOf 0〜2 child・3〜5 adult");
 })();
 
 // ---- 表示ラベル（A-5 表の全値。設計変更票 #1） ----
@@ -178,7 +256,7 @@ function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, { go
   function combos(data, P2) {
     var out = [];
     [22, 23].forEach(function (day) {
-      [0, 1, 2, 3].forEach(function (age) {
+      AGES.forEach(function (age) {                       // v2: 年齢段階 0〜5
         [0, 1, 2, 3].forEach(function (k) {
           var s = [20, 20, 20, 20]; s[k] = 80;
           out.push(L.recommend({ day: day, ageClass: age, n: 1, s: s, q1: "なし", q2: 0, q3: null }, data, {}, P2));

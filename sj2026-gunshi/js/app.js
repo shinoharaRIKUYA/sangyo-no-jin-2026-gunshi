@@ -7,17 +7,18 @@
   var IDLE = q.get("idle") ? parseFloat(q.get("idle")) : 0;
   var T_ASK = IDLE ? IDLE * 1000 : 60000, T_ASK2 = IDLE ? 2000 : 10000, T_AFTER = IDLE ? 3000 : 30000;
   var PRINTTEST = q.get("printtest");
-  var VERSION = "1.0.0";
+  var VERSION = "2.0.0";              // ログの版。v2: ageClass が 0〜5（意味が変わる。PRJ-110 §3-6）
 
   var stage = document.getElementById("stage");
   S.init(stage);
   var V = null;                       // 来場者 1 人の状態（受付へ戻ると破棄）
   var screenKey = null, idleKind = null, lastAct = performance.now(), asking = null, staff = null, busy = false;
-  var SJ = { config: { child: SJPure.gameConfig("child"), adult: SJPure.gameConfig("adult") }, visitor: null, input: null, result: null, games: [] };
+  var SJ = { config: null, visitor: null, input: null, result: null, games: [] };   // config は入口確定時に gameConfig(ageClass, mode)
   if (DEBUG) { window.__sj = SJ; }    // 公開は ?debug=1 のときだけ（A-2-3）
 
   // ---- 共通 ---------------------------------------------------------------
   function clear() {
+    demoOff();                        // S2 のデモを外してから消す（S0 復帰・放置戻りを含む）
     stage.innerHTML = ""; screenKey = null; asking = null;
     SJNet.flush();                    // 画面遷移ごとに再送
   }
@@ -61,7 +62,7 @@
   if (DEBUG) {
     dbg = S.el("pre", "debug", "", document.body);
     setInterval(function () {
-      var o = { n: V && V.n, n_source: V && V.nSource, mode: V && V.mode, degrade: V && V.degrade, live: dbgLive ? dbgLive() : null,
+      var o = { n: V && V.n, n_source: V && V.nSource, ageClass: V && V.ageClass, mode: V && V.mode, degrade: V && V.degrade, live: dbgLive ? dbgLive() : null,
         games: SJ.games, input: SJ.input, net: SJNet.status() };
       dbg.textContent = JSON.stringify(o, null, 1);
     }, 300);
@@ -69,7 +70,7 @@
 
   // ---- S0 受付 ------------------------------------------------------------
   function showS0() {
-    clear(); V = null; SJ.visitor = null; SJ.input = null; SJ.result = null; SJ.games = []; dbgLive = null; busy = false;
+    clear(); V = null; SJ.visitor = null; SJ.config = null; SJ.input = null; SJ.result = null; SJ.games = []; dbgLive = null; busy = false;
     setIdle(null);
     var root = S.el("div", "screen s0", null, stage);
     var seal = S.el("div", "s0-seal", "陣", root);
@@ -101,7 +102,7 @@
       });
     });
     S.el("div", "s1-q", T.s1.ageQ, root);
-    var ages = S.el("div", "s1-ages", null, root);
+    var ages = S.el("div", "s1-ages", null, root);   // 6 択（添字 = ageClass 0〜5。3 列×2 行は game.css）
     T.s1.ages.forEach(function (a, i) {
       var cell = S.el("div", "s1-agecell", null, ages);
       btn(cell, "age", a, function () { confirmEntry(day, i); });
@@ -123,6 +124,7 @@
           order: degrade ? [1, 2, 3] : [1, 2, 3, 4], games: [], q1: null, q2: null, q3: null, res: null
         };
         SJ.visitor = V;
+        SJ.config = SJPure.gameConfig(V.ageClass, V.mode);   // AC-11: __sj.config.g3 が段階表に一致
         busy = false;
         explain(0);
       }).catch(function () {
@@ -132,12 +134,9 @@
   }
 
   // ---- 陣の説明 → 陣 ------------------------------------------------------
-  var DIAG = {
-    1: '<svg viewBox="0 0 300 120"><rect x="10" y="10" width="280" height="100" rx="6" class="d-ita"/><line x1="40" y1="60" x2="260" y2="60" class="d-ink"/><circle cx="40" cy="60" r="10" class="d-shu"/><circle cx="260" cy="60" r="10" class="d-sumi"/></svg>',
-    2: '<svg viewBox="0 0 300 120"><rect x="20" y="20" width="110" height="80" class="d-shadow"/><rect x="200" y="40" width="60" height="40" class="d-part"/><path d="M190 60 L140 60" class="d-arrow"/></svg>',
-    3: '<svg viewBox="0 0 300 120"><rect x="0" y="20" width="300" height="40" class="d-belt"/><rect x="120" y="22" width="36" height="36" class="d-box"/><text x="138" y="47" class="d-mark">●</text><path d="M138 70 L60 105 M138 70 L220 105" class="d-arrow"/></svg>',
-    4: '<svg viewBox="0 0 300 120"><g class="d-grid"><rect x="20" y="10" width="100" height="100"/><path d="M45 10 V110 M70 10 V110 M95 10 V110 M20 35 H120 M20 60 H120 M20 85 H120"/></g><text x="160" y="70" class="d-cmd">↑ ↑ → → →</text></svg>'
-  };
+  // 図はデモアニメ（js/demo.js・css/demo.css。PRJ-110 §3-5）。S2 を離れるとき（カウントダウン開始・画面消去）に unmount して、ゲーム中は走らせない（R-6）
+  var demoFig = null;
+  function demoOff() { if (demoFig) { SJDemo.unmount(demoFig); demoFig = null; } }
   function explain(i) {
     if (!V) { return; }
     clear(); setIdle("normal");
@@ -145,10 +144,14 @@
     var root = S.el("div", "screen s2", null, stage);
     S.el("div", "s2-prog", T.progress(i, total), root);
     S.el("h2", "s2-name", g.name, root);
-    var fig = S.el("div", "s2-fig", null, root); fig.innerHTML = DIAG[k];
+    var fig = S.el("div", "s2-fig", null, root);
+    SJDemo.mount(fig, k, V.ageClass); demoFig = fig;
+    // 位相合わせ: 要素ごとに独立して走る CSS アニメを、mount 直後にそろえて 0 から再生（PRJ-109 README 限界 5）
+    if (fig.getAnimations) { fig.getAnimations({ subtree: true }).forEach(function (a) { a.cancel(); a.play(); }); }
     S.el("div", "s2-text", g[V.mode], root);
+    if (k === 3 && V.ageClass === 0) { S.el("div", "s2-help", T.s1.helper, root); }   // 段階 0 のこども補助（§3-2）
     S.el("div", "s2-time", (V.mode === "adult" ? "制限時間 " : "じかん ") + g.limit + (V.mode === "adult" ? " 秒" : " びょう"), root);
-    var go = function () { if (busy) { return; } busy = true; countdown(function () { busy = false; play(i); }); };
+    var go = function () { if (busy) { return; } busy = true; demoOff(); countdown(function () { busy = false; play(i); }); };
     btn(root, "big go", T.start, go);
     screenKey = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
   }
@@ -165,12 +168,12 @@
     if (!V) { return; }
     clear(); setIdle(null);
     var k = V.order[i], vis = V;
-    var ctx = { mode: V.mode, n: V.n, stageEl: stage, debug: DEBUG, progress: T.progress(i, V.order.length),
+    var ctx = { mode: V.mode, ageClass: V.ageClass, n: V.n, stageEl: stage, debug: DEBUG, progress: T.progress(i, V.order.length),
       debugHook: function (fn) { dbgLive = fn; } };
     SJGame[k].start(ctx).then(function (out) {
       dbgLive = null;
       if (V !== vis) { return; }
-      var sc = ShindanLogic.scoreGame(k, V.mode, out.m, V.P);
+      var sc = ShindanLogic.scoreGame(k, V.ageClass, out.m, V.P);   // v2: 閾値は年齢段階で引く
       var rec = { g: k, end: out.end, m: out.m, p1: sc.p1, p2: sc.p2, s: sc.s, raw: out.raw };
       V.games.push(rec); SJ.games = V.games;
       var ov = S.el("div", "overlay endmark " + out.end, out.end === "done" ? T.done : T.timeout, stage);

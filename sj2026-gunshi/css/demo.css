@@ -1,0 +1,98 @@
+/* 説明画面 S2 のデモアニメ（PRJ-110 §3-5・付録 B-3。PRJ-109 demo_proto から移植）。
+   色・書体は game.css の変数と部品（.hud .g1-* .g2-* .g3-* .g4-* .c-*）を使い、ここでは重複定義しない（R-7: @font-face・font-family を書かない）。
+   図枠 .s2-fig（640×360）の中に 1280×720 の論理座標を 0.5 倍で描く。動きはすべて CSS keyframes。
+   DOM は js/demo.js が組み、S2 を離れるときに unmount で丸ごと外す（R-6。ゲーム中は走らない） */
+.demo-stage { position: relative; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.demo-inner { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform: scale(.5); transform-origin: 0 0; background: var(--washi); }
+.demo-inner > * { position: absolute; }
+.demo-inner .hud-fill { width: 100%; }
+
+/* 手カーソル（矢印＋押している間の朱の輪） */
+.dm-cur { width: 36px; height: 48px; z-index: 30; }
+.dm-cur svg { position: absolute; left: -3px; top: -3px; width: 36px; height: 48px; filter: drop-shadow(2px 2px 0 rgba(30,30,30,.25)); }
+.dm-cur path { fill: #fff; stroke: var(--sumi); stroke-width: 2; stroke-linejoin: round; }
+.dm-cur .ring { position: absolute; left: -17px; top: -17px; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--shu); opacity: 0; }
+
+/* ---- d1 一の陣（5 秒）: カーソルが墨線をなぞり、なぞった跡（藍）が残る ---- */
+.dm-d1 .g1-band { stroke-width: 24; }
+.dm-trace { fill: none; stroke: var(--ai); stroke-width: 10; stroke-linecap: round; opacity: .55; stroke-dasharray: 100; stroke-dashoffset: 100; animation: dm-d1trace 5s linear infinite; }
+.dm-d1cur { offset-path: path("M290 500 Q640 240 990 500"); offset-rotate: 0deg; offset-anchor: 0 0; animation: dm-d1cur 5s linear infinite; }
+.dm-d1cur .ring { animation: dm-d1ring 5s linear infinite; }
+@keyframes dm-d1cur   { 0% { offset-distance: 0%; opacity: 0; } 10% { offset-distance: 0%; opacity: 1; } 20% { offset-distance: 0%; } 84% { offset-distance: 100%; } 100% { offset-distance: 100%; opacity: 1; } }
+@keyframes dm-d1trace { 0%, 20% { stroke-dashoffset: 100; } 84%, 100% { stroke-dashoffset: 0; } }
+@keyframes dm-d1ring  { 0%, 18% { opacity: 0; transform: scale(.5); } 20%, 84% { opacity: 1; transform: scale(1); } 86%, 100% { opacity: 0; } }
+
+/* ---- d2 二の陣（5 秒）: 置き場の立て板を影へドラッグ、吸着して固定色に ---- */
+.dm-d2part { animation: dm-d2part 5s ease-in-out infinite; }
+.dm-d2cur { animation: dm-d2cur 5s ease-in-out infinite; }
+.dm-d2cur .ring { animation: dm-d2ring 5s linear infinite; }
+@keyframes dm-d2part { 0%, 20% { transform: translate(0,0); box-shadow: none; background: var(--ita); }
+  22% { box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  70% { transform: translate(-730px, 80px); box-shadow: 4px 4px 0 rgba(30,30,30,.25); background: var(--ita); }
+  76%, 100% { transform: translate(-730px, 80px); box-shadow: none; background: #e6c899; } }
+@keyframes dm-d2cur  { 0% { left: 700px; top: 440px; } 16%, 20% { left: 980px; top: 330px; } 70%, 100% { left: 250px; top: 410px; } }
+@keyframes dm-d2ring { 0%, 18% { opacity: 0; transform: scale(.5); } 20%, 72% { opacity: 1; transform: scale(1); } 74%, 100% { opacity: 0; } }
+
+/* ---- d3 三の陣（6 秒。レーン別 3 本 d3-1／d3-2／d3-3）: 荷をつかむ → 押さえている間も影（元の位置）がベルトを進む → 同じマークの蔵へ落とす ----
+   盤面は pure.js の g3Layout（ベルト y・蔵の矩形）と同じ。背景の荷はベルトを 6 秒で通過（約 232px/秒。実ゲームより速い） */
+.dm-flow { animation: dm-flow 6s linear infinite; }
+.dm-shadow { width: 90px; height: 90px; border: 2px dashed var(--usuzumi); z-index: 2; opacity: 0; animation: dm-flow 6s linear infinite, dm-shadowop 6s linear infinite; }
+.dm-d3box { z-index: 6; }
+.dm-d3cur .ring { animation: dm-d3ring 6s linear infinite; }
+@keyframes dm-flow { from { transform: translateX(-90px); } to { transform: translateX(1300px); } }
+@keyframes dm-shadowop { 0%, 26.6% { opacity: 0; } 26.7%, 60% { opacity: 1; } 60.1%, 100% { opacity: 0; } }
+@keyframes dm-d3ring { 0%, 25% { opacity: 0; transform: scale(.5); } 27%, 60% { opacity: 1; transform: scale(1); } 62%, 100% { opacity: 0; } }
+/* d3-1: 1 レーン（ベルト y 240・荷 y 245）・蔵 2（幅 590）。▲ を二番蔵（中心 x 945・y 590）へ */
+.dm-d3a-box { animation: dm-d3a-box 6s linear infinite; }
+.dm-d3a-cur { animation: dm-d3a-cur 6s ease-in-out infinite; }
+@keyframes dm-d3a-box { 0% { transform: translate(-90px, 0); opacity: 1; } 26.7% { transform: translate(281px, 0); }
+  36.7% { transform: translate(420px, 0); box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  60% { transform: translate(900px, 300px); opacity: 1; box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  66% { transform: translate(900px, 300px); opacity: .2; box-shadow: none; } 66.1%, 100% { opacity: 0; transform: translate(900px, 300px); } }
+@keyframes dm-d3a-cur { 0%, 8% { left: 640px; top: 440px; } 26.7% { left: 326px; top: 290px; } 36.7% { left: 465px; top: 290px; }
+  60%, 66% { left: 945px; top: 590px; } 80%, 100% { left: 640px; top: 440px; } }
+/* d3-2: 2 レーン（ベルト y 170／290）・蔵 3（幅 386.67）。2 本目の ■ を三番蔵（中心 x 1047・y 590）へ */
+.dm-d3b-box { animation: dm-d3b-box 6s linear infinite; }
+.dm-d3b-cur { animation: dm-d3b-cur 6s ease-in-out infinite; }
+@keyframes dm-d3b-box { 0% { transform: translate(-90px, 0); opacity: 1; } 26.7% { transform: translate(281px, 0); }
+  36.7% { transform: translate(420px, 0); box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  60% { transform: translate(1002px, 250px); opacity: 1; box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  66% { transform: translate(1002px, 250px); opacity: .2; box-shadow: none; } 66.1%, 100% { opacity: 0; transform: translate(1002px, 250px); } }
+@keyframes dm-d3b-cur { 0%, 8% { left: 640px; top: 440px; } 26.7% { left: 326px; top: 340px; } 36.7% { left: 465px; top: 340px; }
+  60%, 66% { left: 1047px; top: 590px; } 80%, 100% { left: 640px; top: 440px; } }
+/* d3-3: 3 レーン（ベルト y 130／240／350）・蔵 4（幅 285）。2 本目の ◆ を四番蔵（中心 x 1097・y 590）へ */
+.dm-d3c-box { animation: dm-d3c-box 6s linear infinite; }
+.dm-d3c-cur { animation: dm-d3c-cur 6s ease-in-out infinite; }
+@keyframes dm-d3c-box { 0% { transform: translate(-90px, 0); opacity: 1; } 26.7% { transform: translate(281px, 0); }
+  36.7% { transform: translate(420px, 0); box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  60% { transform: translate(1052px, 300px); opacity: 1; box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
+  66% { transform: translate(1052px, 300px); opacity: .2; box-shadow: none; } 66.1%, 100% { opacity: 0; transform: translate(1052px, 300px); } }
+@keyframes dm-d3c-cur { 0%, 8% { left: 640px; top: 460px; } 26.7% { left: 326px; top: 290px; } 36.7% { left: 465px; top: 290px; }
+  60%, 66% { left: 1097px; top: 590px; } 80%, 100% { left: 640px; top: 460px; } }
+
+/* ---- d4 四の陣（6 秒）: 命令ボタンを押すたびにタイルが並び、「しゅつじん」でフォークリフトが 1 手 0.3 秒で動く ---- */
+.dm-d4 .g4-cell { width: 90px; height: 90px; }
+.dm-d4 .g4-goal { width: 70px; height: 70px; }
+.dm-d4 .g4-lift { width: 74px; height: 74px; transition: none; animation: dm-d4lift 6s linear infinite; }
+.dm-d4 .g4-slot span { opacity: 0; }
+.dm-d4 .g4-msg { margin: 0; opacity: 0; animation: dm-d4msg 6s linear infinite; }
+.dm-btn { font-size: 40px; width: 96px; height: 64px; line-height: 60px; text-align: center; border: 2px solid var(--ai); border-radius: 6px; background: var(--ai); color: #fff; }
+.dm-btn.dm-del { font-size: 22px; width: 140px; }
+.dm-btn.dm-go { background: var(--shu); border-color: var(--shu); font-size: 32px; width: 140px; }
+.dm-d4cur { animation: dm-d4cur 6s ease-in-out infinite; }
+.dm-d4cur .ring { animation: dm-d4ring 6s linear infinite; }
+.dm-s1 span { animation: dm-d4s1 6s step-end infinite; } .dm-s2 span { animation: dm-d4s2 6s step-end infinite; } .dm-s3 span { animation: dm-d4s3 6s step-end infinite; }
+.dm-s4 span { animation: dm-d4s4 6s step-end infinite; } .dm-s5 span { animation: dm-d4s5 6s step-end infinite; }
+@keyframes dm-d4s1 { 0% { opacity: 0; } 8.3% { opacity: 1; } 92% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes dm-d4s2 { 0% { opacity: 0; } 16.7% { opacity: 1; } 92% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes dm-d4s3 { 0% { opacity: 0; } 25% { opacity: 1; } 92% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes dm-d4s4 { 0% { opacity: 0; } 33.3% { opacity: 1; } 92% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes dm-d4s5 { 0% { opacity: 0; } 41.7% { opacity: 1; } 92% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes dm-d4cur { 0% { left: 900px; top: 520px; } 5%, 20% { left: 710px; top: 312px; } 23%, 45% { left: 1034px; top: 312px; } 48%, 90% { left: 870px; top: 402px; } 100% { left: 900px; top: 520px; } }
+@keyframes dm-d4ring { 0%, 8% { opacity: 0; } 8.3%, 11% { opacity: 1; } 11.3%, 16.4% { opacity: 0; } 16.7%, 19.4% { opacity: 1; } 19.7%, 24.7% { opacity: 0; }
+  25%, 27.7% { opacity: 1; } 28%, 33% { opacity: 0; } 33.3%, 36% { opacity: 1; } 36.3%, 41.4% { opacity: 0; } 41.7%, 44.4% { opacity: 1; } 44.7%, 52.7% { opacity: 0; }
+  53%, 56% { opacity: 1; } 56.3%, 100% { opacity: 0; } }
+/* フォークリフト: (0,4)→(0,3)→(0,2)→(1,2)→(2,2)→(3,2)=荷 */
+@keyframes dm-d4lift { 0%, 58% { left: 108px; top: 508px; } 63% { left: 108px; top: 418px; } 68% { left: 108px; top: 328px; } 73% { left: 198px; top: 328px; }
+  78% { left: 288px; top: 328px; } 83%, 92% { left: 378px; top: 328px; } 92.1%, 100% { left: 108px; top: 508px; } }
+@keyframes dm-d4msg { 0%, 82% { opacity: 0; } 84%, 92% { opacity: 1; } 93%, 100% { opacity: 0; } }

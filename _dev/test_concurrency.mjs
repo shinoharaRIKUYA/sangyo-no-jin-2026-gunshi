@@ -1,7 +1,8 @@
 // node 18+: 2 クライアント × 各 50 件の finish（各 5 picks）を並列送信し、同じ 100 件を再送する（AC-09）
 // 使い方: node output\_dev\test_concurrency.mjs [http://127.0.0.1:8107] [day=24]
 // 前提: サーバーは SJ_RATE_MAX を十分大きくして起動（例 SJ_RATE_MAX=100000）。差分で判定するので何度でも実行できる
-// picks は shindan_logic で本当に計算する（ログを verify_log.js で照合できるように）
+// picks は shindan_logic で本当に計算する。v2（PRJ-110）: ageClass は 0〜5 の両端 [0,5] を送る（modeOf で child/adult を引く。§4 #16）
+// 注意: この payload の v は "test"・games[].m は仮の値なので、verify_log v2（v "2." の行だけ照合）はこれらの行を読み飛ばす
 import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
@@ -25,7 +26,7 @@ const hex8 = () => Math.floor(Math.random() * 0xffffffff).toString(16).padStart(
 // 5 picks になる組合せだけを使う
 function makePayload(cid, seq) {
   for (let t = 0; t < 200; t++) {
-    const age = [2, 3][(seq + t) % 2], mode = L.modeOf(age, PARAMS);
+    const age = [0, 5][(seq + t) % 2], mode = L.modeOf(age, PARAMS);
     const s = [0, 1, 2, 3].map(() => Math.round(Math.random() * 100));
     const q1 = ["木", "金属", "画面紙樹脂", "荷物乗り物", "なし"][(seq + t) % 5], q2 = [-1, 0, 1][(seq + t) % 3];
     const res = L.recommend({ day: DAY, ageClass: age, n: seq, s, q1, q2, q3: null }, DATA, {}, PARAMS);

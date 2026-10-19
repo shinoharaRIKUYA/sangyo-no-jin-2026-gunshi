@@ -172,7 +172,7 @@ button { font-size: 15px; padding: 4px 14px; } tr.chk { background: #fff4e0; } t
 </form>
 
 <h2>推挙可否の上書き</h2>
-<p class="muted">「推挙する」は要確認の行（黄色）だけ選べます。年齢下限区分（0 未就学／1 小1〜3／2 小4〜6／3 中学生以上）と予約区分は必須。注記の追記は 80 字以内。</p>
+<p class="muted">「推挙する」は要確認の行（黄色）だけ選べます。年齢下限区分（0 未就学／1 小1〜3／2 小4〜6／3 中学生以上。出展者の年齢下限区分。来場者の年齢段階 0〜5 とは別）と予約区分は必須。注記の追記は 80 字以内。</p>
 <form method="post" id="ovform">
 <input type="hidden" name="csrf" value="<?= h($csrf) ?>"><input type="hidden" name="act" value="overrides">
 <table>
