@@ -74,7 +74,21 @@ var SJTexts = {
   s4: {
     child: function (a, b) { return "きみは『" + a + "』タイプ！ 『" + b + "』の ちからも あるぞ"; },
     adult: function (a, b) { return "軍師の見立て: 主は『" + a + "』、従に『" + b + "』。"; },
-    print: "推挙状を印刷", next: "次の人へ", honmei: "◎本命", reprint: "もう一度印刷"
+    print: "推挙状を印刷", next: "次の人へ", honmei: "◎本命", reprint: "もう一度印刷",
+    graph: { child: "ちからの くらべっこ", adult: "力の内訳" }
+  },
+  // 腕試し（陣をひとつだけ遊ぶ。診断・推挙状・記録なし。PRJ-116）
+  ch: {
+    btn: "腕試し（陣をひとつ遊ぶ）",
+    title: "腕試し",
+    lead: "陣をひとつ選んで挑戦できます（見立て・推挙状はありません）",
+    ageQ: "年齢をえらぶ",
+    jinQ: "挑戦する陣をえらぶ",
+    prog: "腕試し",
+    power: "この陣で見る力: ",
+    unit: "点",
+    rank: [[80, "見事！ 天下一の腕前"], [60, "上々の出来"], [40, "なかなかの腕前"], [0, "もう一息！"]],
+    again: "もう一度", other: "ほかの陣", back: "受付へ戻る"
   },
   s5: { child: "すいきょじょうを うけとってね", adult: "推挙状をお受け取りください" },
   idle: { ask: "つづけますか？", cont: "つづける" },
@@ -99,7 +113,7 @@ var SJTexts = {
     },
     labels: {
       kind: { "体験": "体験", "見学": "見学" },
-      honmei: "◎ 本命", mitate: "見立て", main: "主", sub: "従", hitokoto: "軍師の一言",
+      honmei: "◎ 本命", mitate: "見立て", graph: "力の内訳", main: "主", sub: "従", hitokoto: "軍師の一言",
       days: "開催", reserve: "予約", duration: "所要", cost: "費用", age: "年齢"
     },
     fixed: "会場の場所・開催時刻・電話番号などは、受付または公式サイト（sangyo-no-jin.jp）でご確認ください。予約が必要なものは、お早めにお申し込みください。内容は当日変わることがあります。",

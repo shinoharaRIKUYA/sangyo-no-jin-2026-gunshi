@@ -188,3 +188,35 @@ h1, h2, h3 { font-family: var(--mincho); font-weight: 700; margin: 0; }
 /* 推挙状（画面では非表示。見た目・寸法は print.css〔media=all〕に集約。ここは画面外配置と計測用だけ） */
 #sheet { display: none; width: 186mm; }
 #sheet.measure { display: block; position: absolute; left: -10000px; top: 0; visibility: hidden; }
+
+/* S4 力の横棒グラフ（PRJ-116）: 見立ての右に並べる */
+.s4-top { display: flex; justify-content: center; align-items: center; gap: 56px; }
+.s4-gr { width: 440px; text-align: left; }
+.s4-gr-h { font-family: var(--mincho); font-size: 22px; color: #4a4744; margin-bottom: 6px; }
+.s4-gr-row { display: flex; align-items: center; gap: 14px; height: 34px; }
+.s4-gr-label { flex: 0 0 150px; font-size: 20px; color: #4a4744; white-space: nowrap; }
+.s4-gr-track { flex: 1 1 auto; height: 16px; border-radius: 8px; background: #e3e6ee; overflow: hidden; }
+.s4-gr-fill { display: block; height: 100%; border-radius: 8px; background: var(--ai); transition: width .8s ease-out; }
+.s4-gr-row.top .s4-gr-fill { background: var(--shu); }
+.s4-gr-row.top .s4-gr-label { color: var(--shu); font-weight: 700; }
+
+/* 腕試し（PRJ-116） */
+.s0-ch { position: absolute; left: 60px; bottom: 40px; }
+.ch-sel .ch-title { font-size: 48px; }
+.ch-lead { font-size: 22px; color: #4a4744; margin: 6px 0 4px; }
+.ch-q { font-family: var(--mincho); font-size: 30px; margin: 18px 0 10px; }
+.ch-ages { display: grid; grid-template-columns: repeat(3, 300px); gap: 14px; justify-content: center; }
+.ch-ages .btn { width: 300px; height: 66px; font-size: 26px; background: var(--washi); color: var(--ai); }
+.ch-ages .btn.on { background: var(--ai); color: #fff; }
+.ch-jins { display: flex; gap: 18px; justify-content: center; }
+.ch-jins .btn { width: 250px; height: 96px; font-size: 26px; }
+.ch-back { position: absolute; left: 60px; bottom: 40px; }
+.ch-res { padding-top: 70px; }
+.ch-name { font-size: 44px; }
+.ch-power { font-size: 22px; color: #4a4744; margin-top: 8px; }
+.ch-score { font-family: var(--mincho); font-size: 120px; font-weight: 700; color: var(--shu); line-height: 1.1; margin-top: 16px; }
+.ch-score small { font-size: 44px; margin-left: 8px; }
+.ch-rank { font-family: var(--mincho); font-size: 36px; margin: 4px 0 18px; }
+.ch-bar { width: 600px; height: 22px; margin: 0 auto 36px; border-radius: 11px; background: #e3e6ee; overflow: hidden; }
+.ch-bar-fill { height: 100%; border-radius: 11px; background: var(--shu); transition: width .8s ease-out; }
+.ch-btns { display: flex; gap: 30px; justify-content: center; }

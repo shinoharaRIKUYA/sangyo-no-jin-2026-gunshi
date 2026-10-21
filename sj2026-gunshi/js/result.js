@@ -6,16 +6,33 @@ var SJResult = (function () {
 
   function row(pick) { return pick.row || pick; }
 
+  // 力の横棒グラフ（PRJ-116）: 4 軸の点（0〜100）を横棒で。主（top）は朱。cls で画面用（s4-gr）と推挙状用（sh-gr）を分ける
+  // 0 点でも棒の頭が見えるよう最小 2%。軸の並びは T.axes の順（K1〜K4）
+  function bars(parent, scores, top, cls, title) {
+    var g = S.el("div", cls, null, parent);
+    if (title) { S.el("div", cls + "-h", title, g); }
+    T.axes.forEach(function (a, i) {
+      var v = Math.max(0, Math.min(100, +scores[i] || 0));
+      var r = S.el("div", cls + "-row" + (i === top ? " top" : ""), null, g);
+      S.el("span", cls + "-label", a.word, r);
+      var tr = S.el("span", cls + "-track", null, r);
+      S.el("span", cls + "-fill", null, tr).style.width = Math.max(2, v) + "%";
+    });
+    return g;
+  }
+
   // S4 見立て
   function showS4(stageEl, V, onPrint, onNext) {
     var mode = V.mode, res = V.res, ax = T.axes;
     var top = ax[res.profile.top], sec = ax[res.profile.second];
     var root = S.el("div", "screen s4", null, stageEl);
     S.el("div", "s4-head", mode === "adult" ? T.s4.adult(top.word, sec.word) : T.s4.child(top.word, sec.word), root);
-    var big = S.el("div", "s4-type", null, root);
+    var topRow = S.el("div", "s4-top", null, root);
+    var big = S.el("div", "s4-type", null, topRow);
     S.el("div", "s4-main", top.word, big);
     S.el("div", "s4-kana", top.kana, big);
     S.el("div", "s4-sub", "従: " + sec.word, big);
+    if (res.profile.scores) { bars(topRow, res.profile.scores, res.profile.top, "s4-gr", T.s4.graph[mode]); }
     if (res.message) { S.el("div", "s4-msg", res.message, root); }
     var list = S.el("div", "s4-cards", null, root);
     res.picks.forEach(function (pk) {
@@ -72,6 +89,7 @@ var SJResult = (function () {
     S.el("span", "sh-mark", L.main, a1); S.el("span", "sh-word", top.word, a1);
     var a2 = S.el("div", "sh-axis sub", null, mi);
     S.el("span", "sh-mark", L.sub, a2); S.el("span", "sh-word", sec.word, a2);
+    if (res.profile.scores) { bars(mi, res.profile.scores, res.profile.top, "sh-gr", L.graph); }
     var hk = S.el("div", "sh-hitokoto", null, mrow);
     S.el("div", "sh-hitokoto-h", L.hitokoto, hk);
     S.el("div", "sh-hitokoto-body", hitokoto(res.profile.top, res.profile.second), hk);
@@ -160,5 +178,5 @@ var SJResult = (function () {
 
   function print() { window.print(); }
 
-  return { showS4: showS4, buildSheet: buildSheet, hitokoto: hitokoto, whenFontsReady: whenFontsReady, measure: measure, fit: fit, longestRows: longestRows, print: print, A4_PX: A4_PX };
+  return { bars: bars, showS4: showS4, buildSheet: buildSheet, hitokoto: hitokoto, whenFontsReady: whenFontsReady, measure: measure, fit: fit, longestRows: longestRows, print: print, A4_PX: A4_PX };
 })();
