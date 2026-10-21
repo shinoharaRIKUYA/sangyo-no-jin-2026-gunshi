@@ -220,3 +220,15 @@ h1, h2, h3 { font-family: var(--mincho); font-weight: 700; margin: 0; }
 .ch-bar { width: 600px; height: 22px; margin: 0 auto 36px; border-radius: 11px; background: #e3e6ee; overflow: hidden; }
 .ch-bar-fill { height: 100%; border-radius: 11px; background: var(--shu); transition: width .8s ease-out; }
 .ch-btns { display: flex; gap: 30px; justify-content: center; }
+
+/* スマホ・タブレット（PRJ-117）: ダブルタップ拡大・引っぱり更新・長押しメニュー・タップの色を止める */
+html, body { touch-action: manipulation; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* タッチ端末の縦向きは画面が小さくなりすぎるので、横向きにしてもらう */
+@media screen and (orientation: portrait) and (pointer: coarse) {
+  body::after {
+    content: "📱↻\A スマホを 横向きに してください\A（画面を回すと はじまります）";
+    white-space: pre; position: fixed; inset: 0; z-index: 2147483647;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    background: var(--washi); color: var(--sumi); font-family: var(--mincho); font-size: 22px; line-height: 1.8;
+  }
+}
