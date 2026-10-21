@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>軍師 試作確認（PRJ-114 T1）</title>
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/gunshi.css">
+<style>
+  /* 試作確認ページ専用（配置しない: D-15） */
+  html, body { overflow: auto; height: auto; }
+  body { margin: 0; background: var(--washi); color: var(--sumi); font-family: var(--gothic); }
+  .pv { display: flex; gap: 32px; padding: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .pv-stage { position: relative; width: 420px; height: 560px; background: #fff; border: 2px solid var(--usuzumi); border-radius: 8px; }
+  .pv-stage.upper { height: 404px; }
+  .pv-char { position: absolute; left: 30px; right: 30px; top: 20px; bottom: 20px; }
+  .pv-stage .gs-bubble { left: 12px; right: 12px; bottom: -8px; transform: translateY(100%); max-width: none; font-size: 20px; }
+  .pv-ctl { width: 520px; }
+  .pv-ctl h2 { font-size: 18px; margin: 18px 0 8px; border-left: 6px solid var(--shu); padding-left: 8px; }
+  .pv-ctl button { font: inherit; font-size: 16px; margin: 0 6px 8px 0; padding: 6px 12px; border: 2px solid var(--sumi); border-radius: 6px; background: #fffaf0; cursor: pointer; }
+  .pv-ctl button.on { background: var(--ai); color: #fff; }
+  .pv-state { font-family: monospace; font-size: 13px; white-space: pre-wrap; background: #fff; border: 1px solid var(--usuzumi); padding: 8px; min-height: 60px; }
+  .pv-credit { font-size: 14px; color: var(--usuzumi); padding: 0 24px 24px; }
+</style>
+</head>
+<body>
+<div class="pv">
+  <div class="pv-stage" id="pv-stage">
+    <div class="pv-char" id="pv-char"></div>
+    <div class="gs-bubble" id="pv-bubble"></div>
+  </div>
+  <div class="pv-ctl">
+    <h2>試聴（最初のクリックで音声を解錠）</h2>
+    <button data-say="s0_greet">s0_greet（受付の挨拶）</button>
+    <button data-say="ig_start">ig_start（いざ、かかれ）</button>
+    <button data-say="hito_01">hito_01（一言 主0・従1）</button>
+    <button id="pv-stop">止める</button>
+    <h2>見せ方</h2>
+    <button data-view="full" class="on">全身</button>
+    <button data-view="upper">上半身</button>
+    <h2>表情</h2>
+    <button data-face="normal" class="on">normal</button>
+    <button data-face="joy">joy</button>
+    <button data-face="surprise">surprise</button>
+    <button data-face="think">think</button>
+    <h2>口 6 形（手動）</h2>
+    <button data-mouth="x">x</button><button data-mouth="a">a</button><button data-mouth="i">i</button>
+    <button data-mouth="u">u</button><button data-mouth="e">e</button><button data-mouth="o">o</button>
+    <h2>動き</h2>
+    <button id="pv-furu">軍配を掲げる</button>
+    <button id="pv-talk">話す動き（口なし）</button>
+    <h2>状態</h2>
+    <div class="pv-state" id="pv-state"></div>
+  </div>
+</div>
+<div class="pv-credit">音声: VOICEVOX:黒沢冴白（合成音声）</div>
+<script src="js/texts.js"></script>
+<script src="js/gunshi_lines.js"></script>
+<script src="js/gunshi_voice.js"></script>
+<script src="js/gunshi.js"></script>
+<script>
+(function () {
+  "use strict";
+  var stage = document.getElementById("pv-stage");
+  var svg = SJGunshi.mount(document.getElementById("pv-char"), { view: "full", bubble: document.getElementById("pv-bubble") });
+  function mark(attr, val) {
+    document.querySelectorAll("button[" + attr + "]").forEach(function (b) { b.classList.toggle("on", b.getAttribute(attr) === val); });
+  }
+  document.querySelectorAll("[data-say]").forEach(function (b) {
+    b.addEventListener("click", function () { SJGunshi.unlock(); SJGunshi.say(b.getAttribute("data-say")); });
+  });
+  document.getElementById("pv-stop").addEventListener("click", function () { SJGunshi.stop(); });
+  document.querySelectorAll("[data-view]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = b.getAttribute("data-view");
+      SJGunshi.view(v); stage.classList.toggle("upper", v === "upper"); mark("data-view", v);
+    });
+  });
+  document.querySelectorAll("button[data-face]").forEach(function (b) {
+    b.addEventListener("click", function () { SJGunshi.face(b.getAttribute("data-face")); mark("data-face", b.getAttribute("data-face")); });
+  });
+  document.querySelectorAll("button[data-mouth]").forEach(function (b) {
+    b.addEventListener("click", function () { SJGunshi.mouth(b.getAttribute("data-mouth")); });
+  });
+  document.getElementById("pv-furu").addEventListener("click", function () { SJGunshi.furu(); });
+  document.getElementById("pv-talk").addEventListener("click", function () { svg.classList.toggle("talking"); });
+  // 画面写し用: #view=upper&face=joy&mouth=a のように初期状態を指定できる
+  location.hash.replace(/^#/, "").split("&").forEach(function (kv) {
+    var p = kv.split("="), b = document.querySelector("button[data-" + p[0] + "=\"" + p[1] + "\"]");
+    if (b) { b.click(); }
+  });
+  setInterval(function () {
+    var s = SJGunshi.state();
+    document.getElementById("pv-state").textContent =
+      "ctx: " + s.ctx + " / playing: " + s.playing + " / loaded: " + s.loaded + " / mouth: " + svg.getAttribute("data-mouth") +
+      "\nvoice: " + (window.SJGunshiVoice ? SJGunshiVoice.rate + "Hz, gen " + SJGunshiVoice.gen : "なし") +
+      "\nhistory: " + SJGunshi.history().map(function (h) { return h.id + "(" + h.kind + ")"; }).join(" → ");
+  }, 200);
+})();
+</script>
+</body>
+</html>
