@@ -94,3 +94,14 @@
   #app, .debug { display: none !important; }
   #sheet { display: block !important; position: static; visibility: visible; width: auto; }
 }
+
+/* 力の横棒グラフ（PRJ-116）: 見立て箱の主・従の下 */
+.sh-gr { margin-top: 2mm; }
+.sh-gr-h { font-size: 8pt; font-weight: 700; color: var(--sj-head); margin-bottom: .5mm; }
+.sh-gr-row { display: flex; align-items: center; gap: 2mm; height: 4.2mm; }
+.sh-gr-label { flex: 0 0 26mm; font-size: 8pt; color: var(--sj-ink); white-space: nowrap; }
+.sh-gr-track { flex: 1 1 auto; height: 2.4mm; border-radius: 1.2mm; background: #E4E7EE; overflow: hidden;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.sh-gr-fill { display: block; height: 100%; border-radius: 1.2mm; background: var(--sj-head); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.sh-gr-row.top .sh-gr-fill { background: var(--sj-honmei); }
+.sh-gr-row.top .sh-gr-label { font-weight: 700; color: var(--sj-honmei); }

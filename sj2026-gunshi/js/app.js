@@ -75,7 +75,7 @@
 
   // ---- S0 受付 ------------------------------------------------------------
   function showS0() {
-    clear(); V = null; SJ.visitor = null; SJ.config = null; SJ.input = null; SJ.result = null; SJ.games = []; dbgLive = null; busy = false;
+    clear(); V = null; SJ.visitor = null; SJ.config = null; SJ.input = null; SJ.result = null; SJ.games = []; dbgLive = null; busy = false; chAge = null;
     setIdle(null);
     var root = S.el("div", "screen s0", null, stage);
     var seal = S.el("div", "s0-seal", "陣", root);
@@ -85,6 +85,7 @@
     S.el("div", "s0-adult", T.s0.adult, root);
     if (PRINTTEST) { S.el("div", "s0-test", "printtest=" + PRINTTEST + "（推挙状は試験用の内容）", root); }
     root.addEventListener("click", function () { showS1(); });
+    btn(root, "s0-ch sub", T.ch.btn, function (e) { e.stopPropagation(); showCh(); });   // 腕試しの入口（PRJ-116）。受付のクリックに伝えない
     screenKey = function (e) { if (e.key === "Enter") { e.preventDefault(); showS1(); } };
     void seal;
     G.scene("s0"); G.say("s0_greet");
@@ -149,7 +150,7 @@
     clear(); setIdle("normal");
     var k = V.order[i], g = T.games[k - 1], total = V.order.length;
     var root = S.el("div", "screen s2", null, stage);
-    S.el("div", "s2-prog", T.progress(i, total), root);
+    S.el("div", "s2-prog", V.challenge ? T.ch.prog : T.progress(i, total), root);
     S.el("h2", "s2-name", g.name, root);
     var fig = S.el("div", "s2-fig", null, root);
     SJDemo.mount(fig, k, V.ageClass); demoFig = fig;
@@ -180,7 +181,7 @@
     clear(); setIdle(null);
     var k = V.order[i], vis = V;
     G.scene("g" + k, { ageClass: V.ageClass }); G.say("ig_start");
-    var ctx = { mode: V.mode, ageClass: V.ageClass, n: V.n, stageEl: stage, debug: DEBUG, progress: T.progress(i, V.order.length),
+    var ctx = { mode: V.mode, ageClass: V.ageClass, n: V.n, stageEl: stage, debug: DEBUG, progress: V.challenge ? T.ch.prog : T.progress(i, V.order.length),
       debugHook: function (fn) { dbgLive = fn; } };
     SJGame[k].start(ctx).then(function (out) {
       dbgLive = null;
@@ -193,6 +194,7 @@
       G.say(out.end === "done" ? "ig_done" : "ig_timeout");
       setTimeout(function () {
         if (V !== vis) { return; }
+        if (V.challenge) { showChResult(rec); return; }   // 腕試しは 1 陣で点数を出して終わり（記録・送信しない）
         if (i + 1 < V.order.length) { explain(i + 1); } else { question(0); }
       }, 1500);
     });
@@ -287,6 +289,63 @@
     setIdle("after");
     G.scene("s5"); G.say("s5_" + V.mode);
   });
+
+  // ---- 腕試し（PRJ-116）: 陣をひとつだけ遊ぶ。来場者番号・状態の取得・ログ送信・診断・推挙状はしない --------
+  var chAge = null;                   // 腕試しの中だけで覚える年齢（受付に戻ると忘れる）
+  function showCh() {
+    clear(); setIdle("normal"); busy = false;
+    V = null; SJ.visitor = null; SJ.games = [];
+    var root = S.el("div", "screen ch-sel", null, stage);
+    S.el("h2", "ch-title", T.ch.title, root);
+    S.el("div", "ch-lead", T.ch.lead, root);
+    S.el("div", "ch-q", T.ch.ageQ, root);
+    var ages = S.el("div", "ch-ages", null, root), ageBtns = [], jinBtns = [];
+    T.s1.ages.forEach(function (a, i) {
+      ageBtns.push(btn(ages, "age" + (i === chAge ? " on" : ""), a, function () {
+        chAge = i;
+        ageBtns.forEach(function (b, j) { b.classList.toggle("on", j === i); });
+        jinBtns.forEach(function (b) { b.disabled = false; });
+      }));
+    });
+    S.el("div", "ch-q", T.ch.jinQ, root);
+    var jins = S.el("div", "ch-jins", null, root);
+    T.games.forEach(function (g, j) {
+      var b = btn(jins, "", g.name, function () { if (chAge !== null) { startCh(j + 1); } });
+      b.disabled = chAge === null; jinBtns.push(b);
+    });
+    btn(root, "ch-back sub", T.ch.back, function () { showS0(); });
+    screenKey = function (e) { var d = parseInt(e.key, 10); if (chAge !== null && d >= 1 && d <= 4) { e.preventDefault(); startCh(d); } };
+    G.scene("s3");
+  }
+  function startCh(k) {
+    if (busy) { return; }
+    var P = SJPure.effectiveParams(P0, false);
+    V = { challenge: true, day: null, ageClass: chAge, mode: ShindanLogic.modeOf(chAge, P),
+      n: 1 + Math.floor(Math.random() * 999), nSource: "challenge", nLabel: "", P: P, degrade: false,
+      order: [k], games: [], res: null };
+    SJ.visitor = V; SJ.config = SJPure.gameConfig(V.ageClass, V.mode);
+    explain(0);
+  }
+  function showChResult(rec) {
+    clear(); setIdle("normal");
+    var k = rec.g, sc = Math.round(Math.max(0, Math.min(100, rec.s))), rank = "";
+    for (var r = 0; r < T.ch.rank.length; r++) { if (sc >= T.ch.rank[r][0]) { rank = T.ch.rank[r][1]; break; } }
+    var root = S.el("div", "screen ch-res", null, stage);
+    S.el("h2", "ch-name", T.games[k - 1].name, root);
+    S.el("div", "ch-power", T.ch.power + T.axes[k - 1].word, root);
+    var big = S.el("div", "ch-score", String(sc), root);
+    S.el("small", null, T.ch.unit, big);
+    S.el("div", "ch-rank", rank, root);
+    var bar = S.el("div", "ch-bar", null, root), fill = S.el("div", "ch-bar-fill", null, bar);
+    fill.style.width = "0%";
+    setTimeout(function () { fill.style.width = Math.max(2, sc) + "%"; }, 30);
+    var bb = S.el("div", "ch-btns", null, root);
+    btn(bb, "big", T.ch.again, function () { startCh(k); });
+    btn(bb, "big sub", T.ch.other, function () { showCh(); });
+    btn(bb, "big sub", T.ch.back, function () { showS0(); });
+    screenKey = function (e) { if (e.key === "Enter") { e.preventDefault(); startCh(k); } };
+    G.scene("s3");
+  }
 
   // ---- 係パネル（Ctrl+Alt+K） --------------------------------------------
   function toggleStaff() {
