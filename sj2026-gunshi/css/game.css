@@ -151,14 +151,14 @@ h1, h2, h3 { font-family: var(--mincho); font-weight: 700; margin: 0; }
 
 /* S3 問い */
 .s3-head { font-size: 26px; color: var(--usuzumi); }
-.s3-text { font-size: 48px; margin: 16px 0 40px; }
+.s3-text { font-size: 48px; margin: 16px 0 24px; }
 .s3-cards { display: flex; justify-content: center; gap: 18px; }
-.s3 .card { background: #fffaf0; color: var(--sumi); border-color: var(--sumi); width: 210px; min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 14px 10px; }
+.s3 .card { background: #fffaf0; color: var(--sumi); border-color: var(--sumi); width: 210px; min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 14px 10px; }
 .s3-cards.n3 .card { width: 320px; }
 .card-no { font-size: 22px; color: var(--usuzumi); align-self: flex-start; }
 .card-icon svg { width: 120px; height: 90px; }
 .card-label { font-size: 26px; margin-top: 10px; line-height: 1.4; }
-.s3-hint { margin-top: 30px; font-size: 22px; color: #4a4744; }
+.s3-hint { margin-top: 20px; font-size: 22px; color: #4a4744; }
 .i-ita { fill: var(--ita); stroke: var(--sumi); stroke-width: 2; } .i-line { fill: none; stroke: var(--sumi); stroke-width: 3; }
 .i-spark { fill: var(--shu); } .i-paper { fill: #fff; stroke: var(--sumi); stroke-width: 2; } .i-fill { fill: var(--sumi); } .i-q { font-size: 44px; text-anchor: middle; fill: var(--usuzumi); }
 
