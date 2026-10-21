@@ -122,3 +122,16 @@ var SJTexts = {
   },
   modeName: { child: "こども", adult: "おとな" }
 };
+// タッチ端末（スマホ・タブレット）では操作の言い方を指・タップにする（PRJ-117。軍師の声は録音済みのため変えない）
+if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) {
+  (function (T) {
+    T.s0.child = "ぐんしに しごとの とくいを みてもらおう！ タップで はじめる";
+    T.s0.adult = "軍師があなたの得意を見立て、仕官先（体験・見学）を推挙します。タップで開始";
+    T.s1.helper = "おうちの人が手伝ってOK";
+    T.games[0].child = "すみの せんを、ゆびで なぞろう。はみださないように！ {n}ぼん";
+    T.games[0].adult = "板の墨線を、指で始点から終点へなぞってください。線からはみ出さない精度を見ます。{n} 本";
+    T.games[1].child = "みぎの ぶひんを ゆびで ひだりの かげに はこんで くみたてよう";
+    T.games[1].adult = "右の部品を指で左の影の正しい位置へ運んでください。違う場所に置くと戻ります。速さと置き直しの少なさを見ます。";
+    T.questions.keyHint = { child: "カードを タップ", adult: "カードをタップ" };
+  })(SJTexts);
+}

@@ -190,13 +190,13 @@ var SJGunshi = (function () {
     if (listening) { return; }
     listening = true;
     var h = function () { unlock(); };
+    // タッチでは pointerdown はユーザー操作として数えられない（touchend・click で解錠される）ため、両方で試す（PRJ-117）
+    var EVS = ["pointerdown", "keydown", "touchend", "click"];
     unlisten = function () {
-      document.removeEventListener("pointerdown", h, true);
-      document.removeEventListener("keydown", h, true);
-      unlisten = null;
+      EVS.forEach(function (ev) { document.removeEventListener(ev, h, true); });
+      listening = false; unlisten = null;
     };
-    document.addEventListener("pointerdown", h, true);
-    document.addEventListener("keydown", h, true);
+    EVS.forEach(function (ev) { document.addEventListener(ev, h, true); });
   }
   function unlocked() { if (unlisten) { unlisten(); } prefetchAll(); }
   function unlock() {

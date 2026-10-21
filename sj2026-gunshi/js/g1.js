@@ -57,14 +57,17 @@ SJGame[1] = {
       }
     }
 
+    // タッチ端末は指で始点を押さえにくいので、つかめる範囲だけ広げる（採点は変えない。PRJ-117）
+    var COARSE = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    var GRAB_START = COARSE ? 60 : 30, GRAB_RESUME = COARSE ? 70 : 40;
     function down(e) {
       if (finished || e.button !== 0) { return; }
       var p = SJStage.toLogical(e);
       if (!started) {
-        if (Math.hypot(p.x - pts[0][0], p.y - pts[0][1]) <= 30) { started = true; drawing = true; }
+        if (Math.hypot(p.x - pts[0][0], p.y - pts[0][1]) <= GRAB_START) { started = true; drawing = true; }
       } else {
         var mp = P.g1PointAt(pts, progress);
-        if (Math.hypot(p.x - mp[0], p.y - mp[1]) <= 40) { drawing = true; }
+        if (Math.hypot(p.x - mp[0], p.y - mp[1]) <= GRAB_RESUME) { drawing = true; }
       }
       if (drawing) { ptr = p; try { svg.setPointerCapture(e.pointerId); } catch (x) { /* 続行 */ } e.preventDefault(); }
     }
