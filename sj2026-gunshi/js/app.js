@@ -11,6 +11,8 @@
 
   var stage = document.getElementById("stage");
   S.init(stage);
+  var G = SJGunshi;
+  G.attach(stage);                    // 軍師の常駐層（#stage の兄弟。PRJ-114 §3-6）
   var V = null;                       // 来場者 1 人の状態（受付へ戻ると破棄）
   var screenKey = null, idleKind = null, lastAct = performance.now(), asking = null, staff = null, busy = false;
   var SJ = { config: null, visitor: null, input: null, result: null, games: [] };   // config は入口確定時に gameConfig(ageClass, mode)
@@ -19,7 +21,9 @@
   // ---- 共通 ---------------------------------------------------------------
   function clear() {
     demoOff();                        // S2 のデモを外してから消す（S0 復帰・放置戻りを含む）
+    G.stop();                         // 軍師の声を止める（全画面遷移・放置で受付へ）
     stage.innerHTML = ""; screenKey = null; asking = null;
+    if (staff) { staff = null; G.hide(false); }   // 係パネルは #stage ごと消えたので状態と軍師の非表示を戻す（PRJ-114 レビュー v1 #4）
     SJNet.flush();                    // 画面遷移ごとに再送
   }
   function setIdle(kind) { idleKind = kind; lastAct = performance.now(); }
@@ -55,6 +59,7 @@
     fill.style.animationDuration = (T_ASK2 / 1000) + "s";
     asking = { t0: performance.now(), cont: function () { if (ov.parentNode) { ov.parentNode.removeChild(ov); } asking = null; lastAct = performance.now(); } };
     btn(box, "big", T.idle.cont, function () { if (asking) { asking.cont(); } });
+    G.say("idle_ask");
   }
 
   // ---- デバッグ表示 -------------------------------------------------------
@@ -82,6 +87,7 @@
     root.addEventListener("click", function () { showS1(); });
     screenKey = function (e) { if (e.key === "Enter") { e.preventDefault(); showS1(); } };
     void seal;
+    G.scene("s0"); G.say("s0_greet");
   }
 
   // ---- S1 入口 ------------------------------------------------------------
@@ -109,6 +115,7 @@
       if (i === 0) { S.el("div", "s1-help", T.s1.helper, cell); }
     });
     var wait = S.el("div", "s1-wait", "", root);
+    G.scene("s1"); G.say("s1_ask");
     function confirmEntry(d, ageClass) {
       if (busy) { return; }
       busy = true; wait.textContent = T.s1.wait;
@@ -154,9 +161,10 @@
     S.el("div", "s2-text", g[V.mode].replace("{n}", gn), root);
     if (k === 3 && V.ageClass === 0) { S.el("div", "s2-help", T.s1.helper, root); }   // 段階 0 のこども補助（§3-2）
     S.el("div", "s2-time", (V.mode === "adult" ? "制限時間 " : "じかん ") + gk.limitSec + (V.mode === "adult" ? " 秒" : " びょう"), root);
-    var go = function () { if (busy) { return; } busy = true; demoOff(); countdown(function () { busy = false; play(i); }); };
+    var go = function () { G.stop(); if (busy) { return; } busy = true; demoOff(); countdown(function () { busy = false; play(i); }); };
     btn(root, "big go", T.start, go);
     screenKey = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+    G.scene("s2"); G.say(G.expId(k, V.mode, gn), { bubble: SJGunshiLines.expBubble[k] });
   }
   function countdown(done) {
     setIdle(null);
@@ -171,6 +179,7 @@
     if (!V) { return; }
     clear(); setIdle(null);
     var k = V.order[i], vis = V;
+    G.scene("g" + k, { ageClass: V.ageClass }); G.say("ig_start");
     var ctx = { mode: V.mode, ageClass: V.ageClass, n: V.n, stageEl: stage, debug: DEBUG, progress: T.progress(i, V.order.length),
       debugHook: function (fn) { dbgLive = fn; } };
     SJGame[k].start(ctx).then(function (out) {
@@ -181,6 +190,7 @@
       V.games.push(rec); SJ.games = V.games;
       var ov = S.el("div", "overlay endmark " + out.end, out.end === "done" ? T.done : T.timeout, stage);
       void ov;
+      G.say(out.end === "done" ? "ig_done" : "ig_timeout");
       setTimeout(function () {
         if (V !== vis) { return; }
         if (i + 1 < V.order.length) { explain(i + 1); } else { question(0); }
@@ -217,6 +227,7 @@
       S.el("span", "card-label", o[V.mode], c);
     });
     S.el("div", "s3-hint", T.questions.keyHint[V.mode], root);
+    G.scene("s3"); G.say(list[qi] + "_" + V.mode);
     screenKey = function (e) { var d = parseInt(e.key, 10); if (d >= 1 && d <= qd.options.length) { e.preventDefault(); pick(qd.options[d - 1]); } };
   }
 
@@ -264,6 +275,7 @@
         SJResult.print();
       });
     }, function () { showS0(); });
+    G.scene("s4"); G.sayResult(V);   // 見立て見出し→一言
   }
   window.addEventListener("afterprint", function () {
     if (!V || !V.res) { return; }
@@ -273,11 +285,13 @@
       btn(box, "big", T.s4.next, function () { showS0(); });
     }
     setIdle("after");
+    G.scene("s5"); G.say("s5_" + V.mode);
   });
 
   // ---- 係パネル（Ctrl+Alt+K） --------------------------------------------
   function toggleStaff() {
-    if (staff) { staff.parentNode.removeChild(staff); staff = null; lastAct = performance.now(); return; }
+    if (staff) { staff.parentNode.removeChild(staff); staff = null; lastAct = performance.now(); G.hide(false); return; }
+    G.stop(); G.hide(true);           // 係パネル中は軍師を黙らせて隠す（クレジットは残す）
     staff = S.el("div", "overlay staff", null, stage);
     var box = S.el("div", "staff-box", null, staff);
     S.el("h3", null, "係パネル", box);
@@ -299,6 +313,17 @@
     var row3 = S.el("div", "staff-row", null, box);
     btn(row3, "small", "今すぐ再送", function () { SJNet.flush().then(function () { toggleStaff(); toggleStaff(); }); });
     btn(row3, "small", "閉じる（Esc）", function () { toggleStaff(); });
+    var gs = G.state();
+    if (!gs.off) {                    // 軍師の声: 音量・ミュート・試しに話す・隠す（PRJ-114 §4）
+      var row4 = S.el("div", "staff-row", null, box); row4.style.flexWrap = "wrap";
+      S.el("span", null, "軍師の声: ", row4);
+      btn(row4, "small", "−", function () { G.setVol(gs.gain - 0.1); toggleStaff(); toggleStaff(); });
+      S.el("span", null, Math.round(gs.gain * 100) + "%", row4);
+      btn(row4, "small", "＋", function () { G.setVol(gs.gain + 0.1); toggleStaff(); toggleStaff(); });
+      btn(row4, "small", gs.muted ? "ミュート解除" : "ミュート", function () { G.mute(!gs.muted); toggleStaff(); toggleStaff(); });
+      btn(row4, "small", "試しに話す", function () { toggleStaff(); G.say("ig_start"); });
+      btn(row4, "small", gs.userHidden ? "軍師を出す" : "軍師を隠す", function () { G.userHide(!gs.userHidden); toggleStaff(); toggleStaff(); });
+    }
   }
 
   // ---- 起動 ---------------------------------------------------------------

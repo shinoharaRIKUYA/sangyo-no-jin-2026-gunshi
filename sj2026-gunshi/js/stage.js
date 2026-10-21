@@ -42,6 +42,7 @@ var SJStage = (function () {
     var bar = el("div", "hud-bar", null, h), fill = el("div", "hud-fill", null, bar);
     var sec = el("div", "hud-sec", String(limitSec), h);
     el("div", "hud-prog", progress, h);
+    var warned = false;
     return {
       update: function (remain) {
         var r = Math.max(0, remain);
@@ -49,6 +50,8 @@ var SJStage = (function () {
         sec.textContent = String(Math.ceil(r));
         var warn = r <= 10;
         h.classList.toggle("warn", warn);
+        // 初めて残り 10 秒以下（0 より大）になった時に 1 回だけ通知（軍師の声かけ。PRJ-114 §3-7）
+        if (warn && r > 0 && !warned) { warned = true; if (hooks.warn) { try { hooks.warn(); } catch (e) { /* 陣を止めない */ } } }
       }
     };
   }
@@ -69,6 +72,7 @@ var SJStage = (function () {
     var to = setTimeout(function () { if (!stopped) { stopped = true; onTick(0, limitSec); onEnd(); } }, limitSec * 1000 + 50);
     return { t0: t0, stop: function () { stopped = true; cancelAnimationFrame(raf); clearTimeout(to); clearInterval(iv); } };
   }
-  return { W: W, H: H, init: init, fit: fit, toLogical: toLogical, el: el, pos: pos, hud: hud, clock: clock,
+  var hooks = {};   // 外から差し込む通知（warn: 残り 10 秒）
+  return { W: W, H: H, init: init, fit: fit, toLogical: toLogical, el: el, pos: pos, hud: hud, clock: clock, hooks: hooks,
     get scale() { return scale; } };
 })();

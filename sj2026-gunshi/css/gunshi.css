@@ -1,0 +1,123 @@
+/* 軍師（PRJ-114 設計書 §3-2）: SVG の各パーツの色と動き・口 6 形の切替・吹き出し・reduced-motion */
+:root {
+  --gs-hada: #f3d6b8; --gs-kuchi: #7a2a24; --gs-shita: #c96a5a; --gs-tabi: #fffaf0;
+  --gs-hoho: rgba(179, 49, 44, .22);
+}
+
+/* --- SVG 本体 --- */
+.gs-svg { display: block; width: 100%; height: 100%; overflow: hidden; }  /* 上半身は viewBox の外を切る */
+.gs-svg .gs-line { stroke: var(--sumi); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.gs-svg .gs-hada { fill: var(--gs-hada); }
+.gs-svg .gs-ai { fill: var(--ai); }
+.gs-svg .gs-shu { fill: var(--shu); }
+.gs-svg .gs-kin { fill: var(--kin); }
+.gs-svg .gs-ita { fill: var(--ita); }
+.gs-svg .gs-matsu { fill: var(--matsu); }
+.gs-svg .gs-tabi { fill: var(--gs-tabi); }
+.gs-svg .gs-hoho { fill: var(--gs-hoho); }
+.gs-svg .gs-sumi { fill: var(--sumi); }
+.gs-svg .gs-white { fill: #fff; }
+.gs-svg .gs-kuchi { fill: var(--gs-kuchi); stroke: var(--sumi); stroke-width: 2; }
+.gs-svg .gs-shita { fill: var(--gs-shita); }
+.gs-svg .gs-kin-line { fill: none; stroke: var(--kin); stroke-width: 4; stroke-linecap: round; }
+.gs-svg .gs-brow { fill: none; stroke: var(--sumi); stroke-width: 7; stroke-linecap: round; }
+.gs-svg .gs-eyeline { fill: none; stroke: var(--sumi); stroke-width: 4; stroke-linecap: round; }
+
+/* 動かすパーツは view-box 基準・px で軸を指定（付録 B） */
+.gs-svg #gs-root, .gs-svg [data-part] { transform-box: view-box; }
+.gs-svg #gs-root { transform-origin: 150px 395px; animation: gs-sway 6s ease-in-out infinite; }
+.gs-svg [data-part="torso"] { transform-origin: 150px 304px; animation: gs-breath 3.6s ease-in-out infinite; }
+.gs-svg [data-part="head"] { transform-origin: 150px 215px; animation: gs-bob 3.6s ease-in-out infinite; }
+.gs-svg .gs-nod { transform-box: view-box; transform-origin: 150px 215px; }
+.gs-svg [data-part="arm-r"] { transform-origin: 196px 230px; }
+
+@keyframes gs-sway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+@keyframes gs-breath { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
+@keyframes gs-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
+@keyframes gs-gunbai-kazasu { 0% { transform: rotate(-10deg); } 100% { transform: rotate(-2deg); } }
+@keyframes gs-gunbai-aogu { 0% { transform: rotate(-7deg); } 100% { transform: rotate(7deg); } }
+@keyframes gs-nodding { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes gs-gunbai-kakageru {
+  0% { transform: rotate(0); } 35% { transform: rotate(-30deg); } 70% { transform: rotate(-30deg); } 100% { transform: rotate(0); }
+}
+
+/* 軍配: 板は黒漆・縁は金。首 (248,198) を軸に扇ぐ */
+.gs-svg .gs-gunbai-ita { fill: var(--sumi); stroke: var(--kin); stroke-width: 4; stroke-linejoin: round; }
+.gs-svg [data-part="gunbai"] { transform-origin: 248px 198px; }
+
+/* 話す時: 軍配を軽く掲げて扇ぐ・うなずく */
+.gs-svg.talking [data-part="arm-r"] { animation: gs-gunbai-kazasu .6s ease-in-out infinite alternate; }
+.gs-svg.talking [data-part="gunbai"] { animation: gs-gunbai-aogu .3s ease-in-out infinite alternate; }
+.gs-svg.talking .gs-nod { animation: gs-nodding 1s ease-in-out infinite; }
+/* 開始時に 1 回だけ軍配を高く掲げる（talking より優先） */
+.gs-svg.gs-furu [data-part="arm-r"] { animation: gs-gunbai-kakageru .7s ease-in-out 1; }
+
+/* --- 眉（表情） --- */
+.gs-svg [data-part="brow-l"], .gs-svg [data-part="brow-r"] { transform-box: fill-box; transform-origin: center; transition: transform .2s; }
+.gs-svg[data-face="joy"] [data-part="brow-l"], .gs-svg[data-face="joy"] [data-part="brow-r"] { transform: translateY(-3px); }
+.gs-svg[data-face="surprise"] [data-part="brow-l"], .gs-svg[data-face="surprise"] [data-part="brow-r"] { transform: translateY(-5px); }
+.gs-svg[data-face="think"] [data-part="brow-l"] { transform: translateY(-2px) rotate(-12deg); }
+.gs-svg[data-face="think"] [data-part="brow-r"] { transform: translateY(2px) rotate(8deg); }
+
+/* --- 目: 開／閉／笑。まばたき・表情で切替 --- */
+.gs-svg [data-part="eyes-closed"], .gs-svg [data-part="eyes-joy"] { display: none; }
+.gs-svg .gs-eye { transform-box: fill-box; transform-origin: center; transition: transform .15s; }
+.gs-svg[data-face="surprise"] .gs-eye { transform: scale(1.35); }
+.gs-svg.gs-blink [data-part="eyes-open"] { display: none; }
+.gs-svg.gs-blink [data-part="eyes-closed"] { display: inline; }
+.gs-svg[data-face="joy"] [data-part="eyes-open"], .gs-svg[data-face="joy"] [data-part="eyes-closed"] { display: none; }
+.gs-svg[data-face="joy"] [data-part="eyes-joy"] { display: inline; }
+
+/* --- 口 6 形: data-mouth と同じ data-m だけ表示 --- */
+.gs-svg [data-m] { display: none; }
+.gs-svg[data-mouth="x"] [data-m="x"], .gs-svg[data-mouth="a"] [data-m="a"], .gs-svg[data-mouth="i"] [data-m="i"],
+.gs-svg[data-mouth="u"] [data-m="u"], .gs-svg[data-mouth="e"] [data-m="e"], .gs-svg[data-mouth="o"] [data-m="o"] { display: inline; }
+
+/* --- 吹き出し（T1 は preview 用の最小。位置・尾の向きは T3 で scene ごとに） --- */
+.gs-bubble {
+  position: absolute; max-width: 480px; padding: 12px 18px; background: #fffaf0; border: 3px solid var(--sumi);
+  border-radius: 14px; font-family: var(--gothic); font-size: 26px; line-height: 1.35; color: var(--sumi);
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+}
+.gs-bubble.show { opacity: 1; }
+
+/* --- 常駐層（T3。設計書 §3-6）: #stage と同じ 1280×720・同じ transform。操作を一切受けない --- */
+#gunshi-layer {
+  position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; overflow: hidden;
+  pointer-events: none; z-index: 60;
+}
+#gunshi-layer * { pointer-events: none; }
+#gunshi-layer .gs-box { position: absolute; }
+#gunshi-layer.gs-hide .gs-box, #gunshi-layer.gs-hide .gs-bubble { display: none; }
+#gunshi-layer .gs-bubble { width: max-content; }
+
+/* 吹き出しの尾（軍師のいる向き）: r＝右・l＝左・u＝上・d＝下 */
+.gs-bubble::before, .gs-bubble::after { content: ""; position: absolute; border-style: solid; border-color: transparent; display: none; }
+.gs-bubble.tail-r::before, .gs-bubble.tail-r::after,
+.gs-bubble.tail-l::before, .gs-bubble.tail-l::after,
+.gs-bubble.tail-u::before, .gs-bubble.tail-u::after,
+.gs-bubble.tail-d::before, .gs-bubble.tail-d::after { display: block; }
+.gs-bubble.tail-r::before { right: -20px; bottom: 14px; border-width: 11px 0 11px 20px; border-left-color: var(--sumi); }
+.gs-bubble.tail-r::after { right: -14px; bottom: 18px; border-width: 7px 0 7px 13px; border-left-color: #fffaf0; }
+.gs-bubble.tail-l::before { left: -20px; top: 14px; border-width: 11px 20px 11px 0; border-right-color: var(--sumi); }
+.gs-bubble.tail-l::after { left: -14px; top: 18px; border-width: 7px 13px 7px 0; border-right-color: #fffaf0; }
+.gs-bubble.tail-u::before { right: 90px; top: -20px; border-width: 0 11px 20px 11px; border-bottom-color: var(--sumi); }
+.gs-bubble.tail-u::after { right: 94px; top: -14px; border-width: 0 7px 13px 7px; border-bottom-color: #fffaf0; }
+.gs-bubble.tail-d::before { right: 90px; bottom: -20px; border-width: 20px 11px 0 11px; border-top-color: var(--sumi); }
+.gs-bubble.tail-d::after { right: 94px; bottom: -14px; border-width: 13px 7px 0 7px; border-top-color: #fffaf0; }
+.gs-bubble.tail-dl::before, .gs-bubble.tail-dl::after { display: block; }   /* 下向き・左寄り（S2 の全身の頭上） */
+.gs-bubble.tail-dl::before { left: 120px; bottom: -20px; border-width: 20px 11px 0 11px; border-top-color: var(--sumi); }
+.gs-bubble.tail-dl::after { left: 124px; bottom: -14px; border-width: 13px 7px 0 7px; border-top-color: #fffaf0; }
+
+/* クレジット（全画面で常時。係パネル中・二の陣中も） */
+.gs-credit {
+  position: absolute; left: 8px; top: 696px; padding: 1px 6px; font-family: var(--gothic); font-size: 16px; line-height: 20px;
+  color: var(--usuzumi); background: rgba(244, 239, 228, .85); white-space: nowrap;
+}
+
+/* 動きを減らす設定: 揺れ・呼吸・腕を止め、まばたきと口だけ残す */
+@media (prefers-reduced-motion: reduce) {
+  .gs-svg #gs-root, .gs-svg [data-part="torso"], .gs-svg [data-part="head"],
+  .gs-svg.talking [data-part="arm-r"], .gs-svg.gs-furu [data-part="arm-r"], .gs-svg.talking [data-part="gunbai"],
+  .gs-svg.talking .gs-nod { animation: none; }
+}
