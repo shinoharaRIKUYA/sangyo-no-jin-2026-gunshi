@@ -42,7 +42,7 @@
       mode: adult ? "adult" : "child",
       ageClass: ageClass,
       g1: { tol: G1_STAGES[ageClass].tol, lines: G1_STAGES[ageClass].lines.slice(), limitSec: 45, sampleMs: 50, minSamples: 20 },
-      g2: { parts: adult ? 5 : 3, snap: adult ? 20 : 40, limitSec: 60, grabMargin: 12 },
+      g2: { parts: G2_STAGES[ageClass].parts, puzzles: G2_STAGES[ageClass].puzzles, snap: adult ? 20 : 40, limitSec: 60, grabMargin: 12 },
       g3: g3,
       g4: { puzzles: G4_STAGES[ageClass].slice(), maxCmds: 8, stepMs: 300, limitSec: 45 }
     };
@@ -192,25 +192,81 @@
     { id: "tateita", name: "立て板", shape: "rect", w: 40, h: 260, tx: 250, ty: 410 },
     { id: "hokyo", name: "補強", shape: "tri", w: 120, h: 120, tx: 310, ty: 480 },
     { id: "tsume", name: "前の爪", shape: "rect", w: 40, h: 60, tx: 510, ty: 510 },
-    { id: "boushi", name: "上の帽子", shape: "rect", w: 80, h: 30, tx: 250, ty: 265 }
+    { id: "boushi", name: "上の帽子", shape: "rect", w: 80, h: 30, tx: 250, ty: 265 },
+    { id: "totte", name: "取っ手", shape: "rect", w: 60, h: 20, tx: 590, ty: 500 }
+  ];
+  // 2026-10-22 調整（PRJ-120）: 本番 1 日目に大人全員がほぼ満点で「組みの将」に偏ったため、複数問・紛らわしい部品を足す
+  // 1 問目は従来の形（G2_PARTS）。2・3 問目は大きさの似た部品の組（天板と底板、側板と仕切り、長い脚と短い脚）を入れる
+  var G2_SETS = [
+    G2_PARTS,
+    [ // 本棚
+      { id: "ten", name: "天板", shape: "rect", w: 320, h: 30, tx: 340, ty: 285 },
+      { id: "soko", name: "底板", shape: "rect", w: 280, h: 40, tx: 340, ty: 590 },
+      { id: "gawa", name: "側板", shape: "rect", w: 40, h: 270, tx: 200, ty: 435 },
+      { id: "shikiri", name: "仕切り", shape: "rect", w: 30, h: 220, tx: 360, ty: 460 },
+      { id: "tana", name: "棚板", shape: "rect", w: 120, h: 30, tx: 280, ty: 430 },
+      { id: "sumi", name: "隅の補強", shape: "tri", w: 80, h: 80, tx: 440, ty: 530 }
+    ],
+    [ // 作業台
+      { id: "dai", name: "天板", shape: "rect", w: 360, h: 40, tx: 380, ty: 300 },
+      { id: "ashiL", name: "長い脚", shape: "rect", w: 40, h: 250, tx: 230, ty: 445 },
+      { id: "ashiR", name: "短い脚", shape: "rect", w: 40, h: 200, tx: 530, ty: 420 },
+      { id: "nuki", name: "貫", shape: "rect", w: 220, h: 30, tx: 380, ty: 480 },
+      { id: "kado", name: "角の補強", shape: "tri", w: 70, h: 70, tx: 285, ty: 355 },
+      { id: "hiki", name: "引き出し", shape: "rect", w: 120, h: 60, tx: 420, ty: 360 }
+    ]
+  ];
+  // 年齢段階ごと（添字 = ageClass）: 問題数 × 1 問の部品数。大人 3 問 × 6 部品 = 18 部品を 60 秒で
+  var G2_STAGES = [
+    { puzzles: 1, parts: 3 },   // 0 未就学児（従来どおり）
+    { puzzles: 2, parts: 3 },   // 1 低学年
+    { puzzles: 2, parts: 4 },   // 2 高学年
+    { puzzles: 2, parts: 5 },   // 3 中学生
+    { puzzles: 3, parts: 5 },   // 4 高校生
+    { puzzles: 3, parts: 6 }    // 5 大人以上
   ];
   var G2_BOARD = { x1: 80, y1: 150, x2: 680, y2: 650 };
   var G2_TRAY = { x1: 760, x2: 1200, cx: 980, y0: 120, gap: 12 };
-  function g2Parts(mode) { return G2_PARTS.slice(0, mode === "adult" ? 5 : 3).map(function (p) { var o = {}; for (var k in p) { o[k] = p[k]; } return o; }); }
+  function g2Parts(mode, set, count) {
+    var src = G2_SETS[set || 0], n = count || (mode === "adult" ? 5 : 3);
+    return src.slice(0, n).map(function (p) { var o = {}; for (var k in p) { o[k] = p[k]; } return o; });
+  }
   // 並び順: 定義順を n mod 部品数 だけ回す
   function g2Order(n, count) {
     var r = ((Math.floor(n) % count) + count) % count, out = [];
     for (var i = 0; i < count; i++) { out.push((i + r) % count); }
     return out;
   }
-  // 置き場の各部品の中心（縦に並べる）
+  // 置き場の各部品の中心。縦 1 列に収まれば従来どおり縦に並べる。収まらなければ横に詰めて段にする（PRJ-120）
+  var G2_TRAY_BOTTOM = 690, G2_TRAY_W = 420;
   function g2TrayLayout(parts, order) {
-    var y = G2_TRAY.y0, pos = {};
-    for (var i = 0; i < order.length; i++) {
-      var p = parts[order[i]];
-      pos[p.id] = { x: G2_TRAY.cx, y: y + p.h / 2 };
-      y += p.h + G2_TRAY.gap;
+    var y = G2_TRAY.y0, pos = {}, i, p, total = 0;
+    for (i = 0; i < order.length; i++) { total += parts[order[i]].h + G2_TRAY.gap; }
+    if (G2_TRAY.y0 + total - G2_TRAY.gap <= G2_TRAY_BOTTOM) {
+      for (i = 0; i < order.length; i++) {
+        p = parts[order[i]];
+        pos[p.id] = { x: G2_TRAY.cx, y: y + p.h / 2 };
+        y += p.h + G2_TRAY.gap;
+      }
+      return pos;
     }
+    function shelves(list) {
+      var rs = [], row = null;
+      list.forEach(function (q) {
+        if (!row || row.w + G2_TRAY.gap + q.w > G2_TRAY_W) { row = { w: 0, h: 0, items: [] }; rs.push(row); }
+        row.w += (row.items.length ? G2_TRAY.gap : 0) + q.w; row.h = Math.max(row.h, q.h); row.items.push(q);
+      });
+      return rs;
+    }
+    function height(rs) { return rs.reduce(function (s, r) { return s + r.h + G2_TRAY.gap; }, 0) - G2_TRAY.gap; }
+    var list = order.map(function (k) { return parts[k]; }), rows = shelves(list);
+    // 並び順のままで収まらなければ、背の高い順に詰め直す（必ず収まる）
+    if (G2_TRAY.y0 + height(rows) > G2_TRAY_BOTTOM) { rows = shelves(list.slice().sort(function (a, b) { return b.h - a.h; })); }
+    rows.forEach(function (r) {
+      var x = G2_TRAY.cx - r.w / 2;
+      r.items.forEach(function (q) { pos[q.id] = { x: x + q.w / 2, y: y + r.h / 2 }; x += q.w + G2_TRAY.gap; });
+      y += r.h + G2_TRAY.gap;
+    });
     return pos;
   }
   // 落とした位置の判定: "snap"（吸着・固定）／"retry"（組立台に誤って置いた＝置き直し +1）／"out"（数えない）
@@ -321,7 +377,7 @@
     ["c6", "a5"],                // 2 高学年: 2 問
     ["a5", "a6", "e8a"],         // 3 中学生: 3 問（最後は 8 手）
     ["a6", "a7", "e8a"],         // 4 高校生: 3 問（最後は 8 手）
-    ["a5", "a6", "a7", "e8b"]    // 5 大人以上: 4 問（最後は 8 手）
+    ["a6", "a7", "e8a", "e8b"]   // 5 大人以上: 4 問（後半 2 問は 8 手。PRJ-120 で a5 を外して難しく）
   ];
   var DIRS = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
   // 問題 id の盤面。n が奇数なら左右反転
@@ -433,7 +489,7 @@
     mulberry32: mulberry32, gameConfig: gameConfig,
     g1Lines: g1Lines, g1Polyline: g1Polyline, g1Project: g1Project, g1PointAt: g1PointAt, polyLength: polyLength, g1Metrics: g1Metrics,
     g1Filter: g1Filter, g1LineValid: g1LineValid,
-    g2Parts: g2Parts, g2Order: g2Order, g2TrayLayout: g2TrayLayout, g2Judge: g2Judge, g2Metrics: g2Metrics, g2Hit: g2Hit, g2PickPart: g2PickPart,
+    G2_SETS: G2_SETS, G2_STAGES: G2_STAGES, G2_TRAY_BOTTOM: G2_TRAY_BOTTOM, g2Parts: g2Parts, g2Order: g2Order, g2TrayLayout: g2TrayLayout, g2Judge: g2Judge, g2Metrics: g2Metrics, g2Hit: g2Hit, g2PickPart: g2PickPart,
     G2_BOARD: G2_BOARD, G2_TRAY: G2_TRAY,
     G3_STAGES: G3_STAGES, G3_MARKS: G3_MARKS, G3_BOX: G3_BOX, g3Marks: g3Marks, g3Layout: g3Layout, g3Labels: g3Labels, g3Pick: g3Pick, g3Drop: g3Drop, g3Tally: g3Tally,
     g4Layout: g4Layout, g4Bfs: g4Bfs, g4Run: g4Run, isWall: isWall, g4Metrics: g4Metrics, G4_STAGES: G4_STAGES, G4_PUZZLES: G4_PUZZLES,

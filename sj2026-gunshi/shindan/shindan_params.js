@@ -14,12 +14,13 @@ var SHINDAN_PARAMS = {
   // 付録 B-1 採点閾値（添字 = ageClass。[悪値, 良値]。前提値。10/20 試遊で見直す）
   thresholds: [
     { g1_onLineRate: [27, 83], g1_maxDev: [87, 23], g2_retries: [5, 0], g2_seconds: [60, 20], g3_accuracy: [40, 90], g3_count: [4, 12],  g4_runs: [6, 1], g4_ratio: [0.4, 1.0] }, // 0 未就学児
-    { g1_onLineRate: [30, 85], g1_maxDev: [80, 20], g2_retries: [4, 0], g2_seconds: [60, 15], g3_accuracy: [50, 95], g3_count: [6, 18],  g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }, // 1 低学年
-    { g1_onLineRate: [33, 87], g1_maxDev: [73, 17], g2_retries: [3, 0], g2_seconds: [60, 13], g3_accuracy: [50, 95], g3_count: [8, 24],  g4_runs: [4, 1], g4_ratio: [0.6, 1.0] }, // 2 高学年
-    { g1_onLineRate: [37, 88], g1_maxDev: [67, 13], g2_retries: [7, 0], g2_seconds: [60, 18], g3_accuracy: [50, 95], g3_count: [9, 29],  g4_runs: [6, 1], g4_ratio: [0.4, 1.0] }, // 3 中学生
-    { g1_onLineRate: [40, 90], g1_maxDev: [60, 10], g2_retries: [6, 0], g2_seconds: [60, 15], g3_accuracy: [50, 95], g3_count: [11, 35], g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }, // 4 高校生
-    { g1_onLineRate: [40, 90], g1_maxDev: [60, 10], g2_retries: [6, 0], g2_seconds: [60, 15], g3_accuracy: [50, 95], g3_count: [13, 40], g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }  // 5 大人以上
+    { g1_onLineRate: [30, 85], g1_maxDev: [80, 20], g2_retries: [5, 0], g2_seconds: [60, 22], g3_accuracy: [50, 95], g3_count: [6, 18],  g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }, // 1 低学年
+    { g1_onLineRate: [33, 87], g1_maxDev: [73, 17], g2_retries: [5, 0], g2_seconds: [60, 24], g3_accuracy: [50, 95], g3_count: [8, 24],  g4_runs: [4, 1], g4_ratio: [0.6, 1.0] }, // 2 高学年
+    { g1_onLineRate: [37, 88], g1_maxDev: [67, 13], g2_retries: [6, 0], g2_seconds: [60, 26], g3_accuracy: [50, 95], g3_count: [9, 29],  g4_runs: [6, 1], g4_ratio: [0.4, 1.0] }, // 3 中学生
+    { g1_onLineRate: [40, 90], g1_maxDev: [60, 10], g2_retries: [6, 0], g2_seconds: [60, 30], g3_accuracy: [50, 95], g3_count: [11, 35], g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }, // 4 高校生
+    { g1_onLineRate: [40, 90], g1_maxDev: [60, 10], g2_retries: [6, 0], g2_seconds: [60, 32], g3_accuracy: [50, 95], g3_count: [13, 40], g4_runs: [5, 1], g4_ratio: [0.5, 1.0] }  // 5 大人以上
   ],
+  // 2026-10-22（PRJ-120）: 二の陣を複数問（大人 3 問 × 6 部品）にしたので g2_retries・g2_seconds を段階ごとに見直し
   gameTimeLimitSec: { g2: 60 },           // 二の陣: 未完成は 60 秒として採点
 
   // 縮退: 四の陣が間に合わない場合は K4: "question"（問い Q3 の値を s_K4 に使う）

@@ -232,3 +232,4 @@ html, body { touch-action: manipulation; overscroll-behavior: none; -webkit-touc
     background: var(--washi); color: var(--sumi); font-family: var(--mincho); font-size: 22px; line-height: 1.8;
   }
 }
+.g2-count { font-family: var(--mincho); font-size: 30px; text-align: left; }   /* 問題 n / N（PRJ-120） */

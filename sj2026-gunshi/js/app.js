@@ -158,14 +158,14 @@
     if (fig.getAnimations) { fig.getAnimations({ subtree: true }).forEach(function (a) { a.cancel(); a.play(); }); }
     // 説明文の本数・問題数と制限時間は gameConfig から出す（texts に数字を二重に持たない。PRJ-111）
     var gc = SJPure.gameConfig(V.ageClass, V.mode), gk = [gc.g1, gc.g2, gc.g3, gc.g4][k - 1];
-    var gn = k === 1 ? gc.g1.lines.length : (k === 4 ? gc.g4.puzzles.length : "");
+    var gn = k === 1 ? gc.g1.lines.length : (k === 4 ? gc.g4.puzzles.length : (k === 2 ? gc.g2.puzzles : ""));
     S.el("div", "s2-text", g[V.mode].replace("{n}", gn), root);
     if (k === 3 && V.ageClass === 0) { S.el("div", "s2-help", T.s1.helper, root); }   // 段階 0 のこども補助（§3-2）
     S.el("div", "s2-time", (V.mode === "adult" ? "制限時間 " : "じかん ") + gk.limitSec + (V.mode === "adult" ? " 秒" : " びょう"), root);
     var go = function () { G.stop(); if (busy) { return; } busy = true; demoOff(); countdown(function () { busy = false; play(i); }); };
     btn(root, "big go", T.start, go);
     screenKey = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
-    G.scene("s2"); G.say(G.expId(k, V.mode, gn), { bubble: SJGunshiLines.expBubble[k] });
+    G.scene("s2"); G.say(G.expId(k, V.mode, k === 2 ? "" : gn), { bubble: SJGunshiLines.expBubble[k] });   // 二の陣の声は問題数を言わない（録音済み）
   }
   function countdown(done) {
     setIdle(null);
