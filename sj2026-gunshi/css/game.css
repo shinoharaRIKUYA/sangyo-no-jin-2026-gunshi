@@ -112,7 +112,9 @@ h1, h2, h3 { font-family: var(--mincho); font-weight: 700; margin: 0; }
 .g2-part.drag { z-index: 10; box-shadow: 4px 4px 0 rgba(30,30,30,.25); }
 .g2-part.fixed { cursor: default; background: #e6c899; z-index: 2; }
 .tri { clip-path: polygon(0 0, 0 100%, 100% 100%); }
-.g2-part.tri { border: 0; background: linear-gradient(45deg, var(--sumi) 0, var(--ita) 0); background: var(--ita); }
+/* 三角は clip-path で枠線が消えるので、枠付きの三角を背景に描く（線の半分が切られて四角の枠 2px と同じ太さになる。PRJ-121） */
+.g2-part.tri { border: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon points='0,0 0,100 100,100' fill='%23d9b98a' stroke='%231e1e1e' stroke-width='4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+.g2-part.tri.fixed { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpolygon points='0,0 0,100 100,100' fill='%23e6c899' stroke='%231e1e1e' stroke-width='4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
 .shake { animation: shake .35s; }
 @keyframes shake { 0%,100% { margin-left: 0; } 25% { margin-left: -10px; } 75% { margin-left: 10px; } }
 

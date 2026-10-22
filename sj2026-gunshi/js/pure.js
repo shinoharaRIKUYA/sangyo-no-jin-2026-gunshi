@@ -190,7 +190,7 @@
   var G2_PARTS = [
     { id: "daiita", name: "台板", shape: "rect", w: 300, h: 40, tx: 380, ty: 560 },
     { id: "tateita", name: "立て板", shape: "rect", w: 40, h: 260, tx: 250, ty: 410 },
-    { id: "hokyo", name: "補強", shape: "tri", w: 120, h: 120, tx: 310, ty: 480 },
+    { id: "hokyo", name: "補強", shape: "tri", w: 120, h: 120, tx: 330, ty: 480 },   // PRJ-121: 立て板の影と 20px 重なって小さく見えたので右へ
     { id: "tsume", name: "前の爪", shape: "rect", w: 40, h: 60, tx: 510, ty: 510 },
     { id: "boushi", name: "上の帽子", shape: "rect", w: 80, h: 30, tx: 250, ty: 265 },
     { id: "totte", name: "取っ手", shape: "rect", w: 60, h: 20, tx: 590, ty: 500 }
