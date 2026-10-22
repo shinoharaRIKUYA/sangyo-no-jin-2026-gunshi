@@ -40,7 +40,7 @@
       '<div class="g2-tray" style="' + pos(760, 150, 440, 500) + '"></div>' +
       '<div class="g2-shadow" style="' + pos(230, 540, 300, 40) + '"></div>' +
       '<div class="g2-shadow" style="' + pos(230, 280, 40, 260) + '"></div>' +
-      '<div class="g2-shadow tri" style="' + pos(250, 420, 120, 120) + '"></div>' +
+      '<div class="g2-shadow tri" style="' + pos(270, 420, 120, 120) + '"></div>' +
       '<div class="g2-shadow" style="' + pos(490, 480, 40, 60) + '"></div>' +
       '<div class="g2-shadow" style="' + pos(210, 250, 80, 30) + '"></div>' +
       '<div class="g2-part fixed" style="' + pos(230, 540, 300, 40) + '"></div>' +
