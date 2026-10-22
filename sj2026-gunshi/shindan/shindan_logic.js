@@ -93,6 +93,8 @@
       var limit = params.gameTimeLimitSec.g2;
       var sec = m.completed ? num(m.seconds, limit) : limit;
       p1 = clampScore(num(m.retries, th.g2_retries[0]), th.g2_retries[0], th.g2_retries[1]);
+      // 未完成なら置き直しの点を「そろえた部品の割合」で割り引く（PRJ-120。frac が無い旧ログは従来どおり）
+      if (!m.completed && typeof m.frac === "number" && isFinite(m.frac)) { p1 *= Math.max(0, Math.min(1, m.frac)); }
       p2 = clampScore(sec, th.g2_seconds[0], th.g2_seconds[1]);
     } else if (game === 3) {
       var acc, cnt;
