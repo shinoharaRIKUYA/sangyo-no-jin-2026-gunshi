@@ -79,7 +79,8 @@ SJGame[4] = {
         }
         if (res.result === "crash") { msg.textContent = child ? "ぶつかった！" : "ぶつかった！ 並べ直そう"; lift.classList.add("shake"); setTimeout(function () { lift.classList.remove("shake"); }, 400); }
         else { msg.textContent = child ? "とどかない" : "とどかない。並べ直そう"; }
-        busy = false;
+        // 失敗したら車を出発点へ戻す（PRJ-119）。戻るまでは次の出陣を受け付けない
+        nextT = setTimeout(function () { if (finished) { return; } putLift(lay.start); busy = false; }, 600);
       }, cfg.stepMs);
     }
     function key(ev) {
